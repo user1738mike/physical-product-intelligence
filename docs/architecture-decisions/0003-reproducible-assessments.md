@@ -1,0 +1,2 @@
+# ADR 0003: Immutable evidence and assessment inputs
+Status: accepted design. Decision: immutable product/rule revisions, decimal canonical units, retained original observations, explicit uncertainty and full input/engine snapshots. Consequences: storage and schema complexity are justified by traceability; retention deletion may invalidate evidence availability and must record that fact. ML inference cannot replace deterministic provenance.

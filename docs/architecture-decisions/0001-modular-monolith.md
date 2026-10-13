@@ -1,0 +1,2 @@
+# ADR 0001: Modular monolith
+Status: accepted for foundation. Context: one initial workflow and an unvalidated commercial direction. Decision: Django/DRF with explicit domain services and a separate Next.js frontend, PostgreSQL authority, versioned API. Consequences: simpler transactions and deployment; domain boundaries require code review. Revisit service extraction only for measured scaling or independent operational ownership.

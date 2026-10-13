@@ -1,0 +1,2 @@
+# ADR 0002: Tenant isolation before ingestion
+Status: accepted design; implementation scheduled for Phase 2. Decision: global users, organization memberships and mandatory tenant context; deny-by-default permissions and organization-scoped lookups. Do not rely on UUID obscurity. Consequences: adversarial tests gate ingestion. RLS is deferred until transaction/pooling context and bypass rules can be tested; application scoping is still mandatory.

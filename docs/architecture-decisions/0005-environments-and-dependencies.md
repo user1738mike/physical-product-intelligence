@@ -1,0 +1,2 @@
+# ADR 0005: Explicit environments and reproducible dependencies
+Status: accepted. Decision: Django development/test/production settings, production fail-closed configuration, PostgreSQL CI integration, exact Python lock and npm lock, loopback-only Compose. SQLite is opt-in smoke testing only. Consequences: production configuration is stricter; lock upgrades require tests and advisory review. Image tags are versioned locally; production promotion requires digest pinning and image scanning.

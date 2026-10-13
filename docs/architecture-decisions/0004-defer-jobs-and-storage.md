@@ -1,0 +1,2 @@
+# ADR 0004: Introduce infrastructure with workflows
+Status: accepted. Decision: do not run Redis/Celery or S3 in Phase 1 when no jobs or uploads exist. Evidence will own a private S3 adapter; asynchronous workflows will use Celery/Redis with idempotent tasks. Consequences: fewer unused services and no false integration claims; Phase 3 must implement and test these contracts before accepting files.

@@ -1,0 +1,9 @@
+# Testing strategy
+
+Phase 1 checks process liveness, successful database readiness, generic readiness failure, safe request IDs, production missing/unsafe configuration, security checks and OpenAPI validation. Backend tests use Django's runner. PostgreSQL is required in Compose and CI; explicitly selected SQLite is a local smoke option and cannot prove PostgreSQL compatibility. Frontend tests inspect the rendered landing component and health response semantics using Vitest, followed by TypeScript, ESLint, Prettier and the Next.js production build.
+
+CI runs on pull requests and pushes with PostgreSQL, backend formatting/linting/tests/schema validation, frontend install-from-lock/checks/tests/build and a Compose smoke job. Compose smoke verifies actual API/database readiness, frontend readiness and migrations. Logs from failed containers assist diagnosis without publishing environment files. CI is configured but only an actual CI run proves runner behavior.
+
+Phase 2 gate: two-tenant adversarial tests for all read/write operations and role combinations; membership revocation, invitations, session expiry, CSRF, concurrent updates and audit attribution. Later gates add unit/dimension conversions, threshold/uncertainty boundaries, deterministic replay, evidence authorization, malformed uploads and retry idempotency. Integration tests cover PostgreSQL constraints and transaction behavior; property-based tests fit unit conversions and rule evaluation. End-to-end customer workflow and keyboard/accessibility tests precede launch.
+
+Release gates include migration review, dependency advisory review, production configuration check, restore drill and a staging smoke test. Test results must distinguish executed/passed, failed and unavailable checks. No coverage percentage alone is evidence of isolation or correctness.
