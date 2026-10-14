@@ -1,7 +1,6 @@
-<<<<<<< HEAD
+
 # physical-product-intelligence
 Multi-tenant SaaS platform that builds evidence-backed digital profiles of physical products and evaluates their compatibility with handling, inspection, packaging, and automation workflows.
-=======
 # Physical Product Intelligence Cloud
 
 A foundation for a multi-tenant product and packaging assessment platform, initially intended for warehouse robotics integrators. Phase 1 implements operational endpoints and a public identification page. Customer authentication, tenant data, uploads and assessment workflows are not yet implemented. Architecture and requirements are in [docs](docs/product-requirements.md).
@@ -80,4 +79,3 @@ See [architecture](docs/system-architecture.md), [domain model](docs/domain-mode
 Phase 2 starts with a custom user/identity decision **before the first customer database is initialized**, organizations, memberships, role policy, membership-derived tenant context and audit events. Django's default auth tables currently exist only as framework foundation; changing user models later requires a migration plan. Implement verified login/invite/revocation flows, then prove two-tenant access denial on every list/detail/write/related-object path before ingesting product data.
 
 Execution results and remaining blockers are recorded in `docs/implementation-report.md`.
->>>>>>> a02408a (Initial commit)
