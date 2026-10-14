@@ -2,6 +2,8 @@
 
 Organization, Membership and AuditEvent are implemented in Phase 2; User remains Django's migration-safe global `auth.User`. Phase 3 implements Product, ProductRevision, PackagingProfile, Measurement, Evidence and immutable RevisionEvidence links. Constraints, assessments and integrations below remain planned. Tenant entities use UUIDs and UTC timestamps. Measurements use exact decimals; tenant ownership is derived through the product at every boundary.
 
+Phase 3 completion adds PackagingConfiguration (stable editable identity), ConfigurationRevision (immutable descriptor/lifecycle history), AttributeClaim (typed immutable numeric/text assertion), ClaimVerification (authorized physical attestation linking original and measured claims), and ClaimSelection (immutable canonical decision/rationale). ADR 0008 defines their boundaries. Existing bundled PackagingProfile snapshots remain compatible and immutable; they are not the current editable configuration collection.
+
 | Entity | Relationships and invariants |
 | --- | --- |
 | Organization | Tenant boundary; lifecycle and retention policy |
@@ -23,4 +25,12 @@ Each product revision is a complete snapshot; omissions are not inherited from i
 Published assessments reference immutable revisions and serialize complete normalized input, rules, engine version, evidence hashes, unit conversion version, execution timestamp and decision policy. Use pass/fail/unknown/not-applicable outcomes with reasons and per-rule evidence links. Re-running changed rules creates a new assessment. Constraints with uncertain ranges require a documented conservative boundary policy. Mutable external URLs alone are insufficient evidence. Physical test results and model inference outputs need their own versioned methods and artifacts later.
 
 ## Integrity and deletion
+Product PATCH copies retained snapshot data and appends a revision with optimistic concurrency. Live packaging edits/lifecycle transitions also require expected versions and record prior descriptors. Numeric claims reuse exact metric normalization; text claims use an allowlisted attribute vocabulary and cannot carry numeric units. Reported and estimated claims are directly contributable; measured claims require an owner/admin physical attestation with source, procedure, instrument, time and limitations. Selecting an estimate never changes its basis. New contradictory claims make an earlier selection stale. Unknown is the absence of a claim; no preferred value is invented.
+
+PostgreSQL deferred constraint triggers validate same-product source/claim/profile links, ordered same-revision bundled containment and verification consistency; a measured claim requires its verification record by commit. SQLite does not install these guards. History remains protected by application/ORM/admin controls and foreign keys; no RLS or database-level immutability is claimed.
+
 All tenant-owned foreign key relationships must be checked for same-organization ownership inside transactions; a UUID does not grant access. Add database constraints where feasible, including tenant-specific revision uniqueness. Deletion uses retention-aware workflows: revoke download grants, remove objects and records, preserve permitted audit metadata, and document residual backup retention. Legal holds and jurisdiction rules must be resolved before ingestion.
+
+## Phase 4 ingestion increment
+
+Ingestion adds ImportJob (tenant, private file key/checksum, lifecycle/options/mapping/preview/counters), ImportRow (immutable-through-API source cells/location and versioned catalog targets), Candidate (raw/proposed/normalized attribute, quality/comparison, reviewed decision and resulting claim), and append-only ReviewRecord (corrections/decisions/mapping/creation actor/time/reason). Applied rows reference the existing Evidence model and captured source via the job. Numeric claims reuse metric-v1 and remain reported; selection is explicit and never confers verification. Ordinary APIs cannot edit raw uploads/rows or delete review history. Source/artifact integrity does not prove authenticity.

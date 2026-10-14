@@ -135,6 +135,15 @@ class EvidenceInput(StrictSerializer):
 
 class ProductSerializer(serializers.ModelSerializer):
     latest_revision_number = serializers.IntegerField(read_only=True)
+    latest_revision_id = serializers.UUIDField(read_only=True)
+    creator_id = serializers.IntegerField(read_only=True, allow_null=True)
+    modified_by_id = serializers.IntegerField(read_only=True, allow_null=True)
+    name = serializers.CharField(read_only=True)
+    description = serializers.CharField(read_only=True)
+    brand = serializers.CharField(read_only=True)
+    manufacturer = serializers.CharField(read_only=True)
+    model_number = serializers.CharField(read_only=True)
+    category = serializers.CharField(read_only=True)
 
     class Meta:
         model = Product
@@ -144,17 +153,48 @@ class ProductSerializer(serializers.ModelSerializer):
             "sku",
             "is_active",
             "latest_revision_number",
+            "latest_revision_id",
+            "name",
+            "description",
+            "brand",
+            "manufacturer",
+            "model_number",
+            "category",
+            "creator_id",
+            "modified_by_id",
             "created_at",
             "updated_at",
         ]
         read_only_fields = fields
 
 
+class ArtifactSerializer(serializers.Serializer):
+    job_id = serializers.UUIDField()
+    sha256 = serializers.CharField()
+    location = serializers.CharField()
+    download_path = serializers.CharField()
+
+
 class EvidenceSerializer(serializers.ModelSerializer):
     capture_status = serializers.SerializerMethodField()
+    source_artifact = serializers.SerializerMethodField()
+
+    @extend_schema_field(ArtifactSerializer(allow_null=True))
+    def get_source_artifact(self, obj):
+        row = obj.importrow_set.select_related("job").first()
+        if row is None:
+            return None
+        return {
+            "job_id": str(row.job_id),
+            "sha256": row.job.sha256,
+            "location": row.location,
+            "download_path": (
+                f"/api/v1/organizations/{row.job.organization_id}/imports/{row.job_id}/file/"
+            ),
+        }
 
     def get_capture_status(self, obj) -> str:
-        return "reference_only"
+        return "stored_private" if obj.importrow_set.exists() else "reference_only"
 
     class Meta:
         model = Evidence
@@ -167,6 +207,7 @@ class EvidenceSerializer(serializers.ModelSerializer):
             "description",
             "declared_sha256",
             "capture_status",
+            "source_artifact",
             "attribution",
             "license",
             "observed_at",
@@ -177,6 +218,12 @@ class EvidenceSerializer(serializers.ModelSerializer):
 
 
 class MeasurementSerializer(serializers.ModelSerializer):
+    verification_status = serializers.SerializerMethodField()
+
+    def get_verification_status(self, obj) -> str:
+        # A contributor-declared method is not an authorized physical verification.
+        return "unverified_report"
+
     class Meta:
         model = Measurement
         fields = [
@@ -194,6 +241,7 @@ class MeasurementSerializer(serializers.ModelSerializer):
             "method",
             "observed_at",
             "evidence_id",
+            "verification_status",
         ]
         read_only_fields = fields
 

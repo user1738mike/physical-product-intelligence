@@ -16,7 +16,7 @@ Let `base=/api/v1/organizations/{organization_id}/products/`. UUIDs in paths mus
 | GET | `{product_id}/revisions/{revision_id}/packaging/` | Paginated packaging profiles with observations |
 | GET | `{product_id}/revisions/{revision_id}/packaging/{packaging_id}/` | One profile with observations |
 
-Collections use `?page=1`, with 25 results and `count`, `next`, `previous`, `results`. Product ordering is SKU then UUID, revision ordering descending number, evidence ordering newest recorded time, and packaging ordering level then UUID. Follow page numbers through the same-origin collection path; the backend's absolute pagination links can contain its internal host. There are no filtering/search, bulk-write or file-download APIs in this phase. Each revision is a complete replacement snapshot for new history: omitted optional fields reset to blank/unknown rather than inheriting prior data. Earlier revisions remain unchanged.
+Collections use `?page=1`, with 25 results and `count`, `next`, `previous`, `results`. Product ordering defaults to SKU then UUID. Catalog queries accept `search` (SKU/current name, at most 100 characters), `status=all|active|archived` and `ordering=sku|-sku|name|-name|updated_at|-updated_at`. Unsupported query fields/orderings and invalid or excessive page numbers are rejected. Revision ordering is descending number; evidence is newest first. Follow page numbers through the same-origin collection path; backend absolute links can contain its internal host. Bulk writes and file downloads are unavailable. The original revision POST remains a complete snapshot replacement; the newer product PATCH below safely copies retained data and appends a revision.
 
 ## Create a product
 
@@ -99,6 +99,89 @@ Supported properties are length/width/height with mm/cm/m → mm, and mass with 
 
 ## History, archival and boundaries
 
-Products always have a first revision. New revisions receive the next number transactionally, including concurrent submissions. Evidence, revisions, profiles, observations and revision/source links cannot be edited or deleted through the API; no generic product PATCH/DELETE exists. Owner/admin archival disables new revisions/evidence without hiding authorized history. Reactivation permits new submissions. Tenant suspension denies access and membership removal affects subsequent requests. Audit events contain product/revision/evidence IDs and actions rather than source text, measurements, digests or credentials.
+Products always have a first revision. New revisions receive the next number transactionally, including concurrent submissions. Historical evidence, revisions, bundled profiles, observations and revision/source links cannot be edited or deleted. Product PATCH now appends a revision with concurrency validation; product DELETE remains unavailable. Owner/admin archival stops new writes while retaining history. Tenant suspension denies access and membership removal affects subsequent requests. Audit events contain actions/IDs, not source text, physical values, digests or credentials.
 
-The [OpenAPI document](/api/v1/schema/) is generated from request/response serializers. ADR 0007 records model and policy decisions. Product editing screens, captured artifact storage, sampling protocols, preferred-observation selection, constraints and assessments remain future work.
+The [OpenAPI document](/api/v1/schema/) is generated from request/response serializers. ADRs 0007/0008 record model and policy decisions. Product screens and explicit claim selection are implemented below. Captured artifacts, automated sampling protocols, constraints and assessments remain future work.
+
+## Current catalog and packaging workflows
+
+The browser entry point is `/products`. Choose an organization, search/page the catalog, and open/create a product. The product page provides editing, packaging profiles, attribute claims, lifecycle controls and scoped history. Owners/admins see physical verification and selection controls; members can contribute reported/estimated claims and read history. All permissions are rechecked server-side.
+
+`PATCH {product_id}/` accepts one or more descriptive fields, `expected_revision` and `change_reason`. Example: `{"name":"Corrected name","expected_revision":2,"change_reason":"Correct source transcription"}`. It retains prior source links/packaging snapshots and appends revision 3. A stale expected revision returns 409. It cannot change SKU, tenant ownership, actors or lifecycle state. The separate state endpoint remains owner/admin-only. Catalog details/author fields are derived from revisions; `modified_by_id` means the latest catalog revision author, while lifecycle actors are in history.
+
+The original `/revisions/{id}/packaging/` routes above are immutable bundled snapshot history. The current editable packaging routes are separate stable identities, allowing multiple configurations at the same level:
+
+| Method | Relative route | Behavior |
+| --- | --- | --- |
+| GET / POST | `{product_id}/packaging/` | List/create live named configurations |
+| GET / PATCH | `{product_id}/packaging/{packaging_id}/` | Retrieve/edit descriptors with `expected_version` and `change_reason` |
+| POST | `{product_id}/packaging/{packaging_id}/state/` | Owner/admin lifecycle change with `expected_version` and `is_active` |
+| GET | `{product_id}/packaging/{packaging_id}/revisions/` | Immutable complete descriptor/lifecycle history |
+| GET | `{product_id}/packaging/{packaging_id}/evidence/` | Distinct provenance sources referenced by this profile's claims |
+
+Create with `{"name":"Six-unit shipping case","level":"case","quantity":6,"material":"Cardboard"}`. Name is required/unique within its product; level is required. Optional quantity means declared units per package; null means unknown. Optional material/description are reported descriptors, not physical verification. No physical dimension/mass is inferred. Existing bundled snapshots are retained and are not automatically merged into live configurations. Edits increment the version and preserve the previous descriptor revision; stale updates return 409. Product or profile archival blocks further edits/claims/verification/selection until authorized reactivation.
+
+## Attribute claims and authorized verification
+
+Let `scope={product_id}/` for product attributes or `{product_id}/packaging/{packaging_id}/` for a live profile. Sources can be shared between claims of the same product; foreign-product sources are denied even within one tenant.
+
+| Method | Relative route | Behavior |
+| --- | --- | --- |
+| GET / POST | `scope + claims/` | Paginated immutable assertions / add reported or estimated claim |
+| GET | `scope + claims/{claim_id}/` | Claim, source and physical verification records |
+| POST | `scope + claims/{claim_id}/verification/` | Owner/admin documented physical measurement; creates a separate measured claim |
+| GET | `scope + attributes/` | Fixed nine-attribute state summary, conflicts and explicit selection |
+| POST | `scope + attributes/{attribute}/selection/` | Owner/admin selection with rationale |
+| GET | `scope + history/` | Authorized success history for this resource and its claims |
+
+Numeric attributes are length/width/height/mass with the existing exact Decimal/unit/bounds validation. Text claims support name, brand, manufacturer, category and material via `text_value`; numeric fields/units are forbidden on text claims. Sources are supplied using exactly one of `evidence_id` or nested `source` (the Evidence POST shape). Nested source+claim writes are atomic. A resource retains up to 500 claims; writes beyond the cap fail explicitly without purging history.
+
+```json
+{
+  "attribute": "mass",
+  "basis": "estimated",
+  "value": "1100",
+  "unit": "g",
+  "method": "External model or estimation method, version 1",
+  "limitations": "No physical sample; not independently measured",
+  "observed_at": "2026-01-01T10:00:00Z",
+  "source": {
+    "title": "Externally supplied estimate",
+    "source_type": "ai_estimate",
+    "source_reference": "External run reference",
+    "attribution": "Contributor-declared operator",
+    "license": "Unknown / not confirmed",
+    "observed_at": "2026-01-01T10:00:00Z"
+  }
+}
+```
+
+Ordinary creation accepts reported/estimated only. Estimates require methodology and limitations; arbitrary confidence scalars are rejected, and AI sources cannot be relabeled as reported claims. No AI pipeline runs. A manually entered or contributor-described measured value remains unverified. The legacy snapshot observation response explicitly labels its verification status `unverified_report`.
+
+Physical verification requires owner/admin, a numeric value with declared unit/time, physical_test evidence, instrument, procedure and sampling/limitation notes. Example body:
+
+```json
+{
+  "value": "1.35", "unit": "kg",
+  "observed_at": "2026-01-02T10:00:00Z",
+  "instrument": "Contributor-declared scale reference",
+  "procedure": "Tare the scale and weigh the sealed sample.",
+  "notes": "One sample; no handling safety conclusion.",
+  "source": {
+    "title": "Physical weighing record", "source_type": "physical_test",
+    "source_reference": "Notebook entry 17", "attribution": "Declared observer",
+    "license": "Contributor-declared internal use",
+    "observed_at": "2026-01-02T10:00:00Z"
+  }
+}
+```
+
+The original claim remains unchanged. The response is a new measured claim with an immutable verification linking original/new claim, authorized actor, server time, instrument/procedure/notes. This is a physical-measurement attestation, not independent verification of real-world truth or file integrity. It does not certify robot compatibility. Text claims cannot use the physical-measurement verification endpoint.
+
+The summary distinguishes unknown, reported, estimated, verified, conflict and resolved. Absence is unknown, never zero. Different canonical values, intervals or text are competing claims. No canonical value is supplied until an owner/admin posts `{"claim_id":"...","rationale":"Why this observation is selected despite the competing evidence"}`. Selection never changes basis; a selected estimate remains estimated. A new contradictory claim after selection reopens the conflict and withholds the canonical value until renewed review. All claims, verifications and selection history are retained. Catalog text is not silently overwritten by a selection.
+
+History has actor/time/action/resource identity, is paginated/non-cacheable and has no mutation/deletion endpoint. Members may read their product/profile history without global organization-audit permission. PostgreSQL deferred provenance guards supplement the same-product API checks and require a verification record for measured claims by commit. They do not provide RLS or database-level history immutability. SQLite cannot verify these PostgreSQL guards.
+
+## Phase 4 ingestion increment
+
+Evidence responses now optionally include `source_artifact` (job UUID, computed SHA-256, row/page location and an authorized relative download path), and capture_status `stored_private` for applied ingestion sources. Manual sources retain `reference_only`; declared digests remain unverified unless linked to a captured source. Import review/API routes are documented in [ingestion API](ingestion-api.md).

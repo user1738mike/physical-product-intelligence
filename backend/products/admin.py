@@ -1,8 +1,13 @@
 from django.contrib import admin
 
 from .models import (
+    AttributeClaim,
+    ClaimSelection,
+    ClaimVerification,
+    ConfigurationRevision,
     Evidence,
     Measurement,
+    PackagingConfiguration,
     PackagingProfile,
     Product,
     ProductRevision,
@@ -25,4 +30,13 @@ class ProductHistoryAdmin(admin.ModelAdmin):
 
 
 for model in (Product, ProductRevision, Evidence, RevisionEvidence, PackagingProfile, Measurement):
+    admin.site.register(model, ProductHistoryAdmin)
+
+for model in (
+    PackagingConfiguration,
+    ConfigurationRevision,
+    AttributeClaim,
+    ClaimVerification,
+    ClaimSelection,
+):
     admin.site.register(model, ProductHistoryAdmin)

@@ -4,3 +4,6 @@ drf-spectacular==0.30.0
 psycopg[binary]==3.3.6
 gunicorn==26.2.0
 ruff==0.17.0
+openpyxl==3.1.5
+defusedxml==0.7.1
+pypdf==6.20.1

@@ -440,7 +440,6 @@ class ProductAPITests(TestCase):
                 with self.assertRaises(ValueError):
                     type(obj).objects.filter(pk=obj.pk).delete()
         urls = [
-            self.url(),
             self.url(f"revisions/{revision.pk}/"),
             self.url(f"evidence/{self.source.pk}/"),
             self.url(f"revisions/{revision.pk}/packaging/{data['packaging'][0]['id']}/"),
@@ -451,6 +450,11 @@ class ProductAPITests(TestCase):
             )
             self.assertEqual(self.client.delete(url).status_code, 405)
         self.assertEqual(self.client.get(self.url(f"revisions/{revision.pk}/")).json(), data)
+        # Product PATCH now appends a revision; it cannot edit history or omit concurrency fields.
+        self.assertEqual(
+            self.client.patch(self.url(), {"name": "Edited"}, format="json").status_code, 400
+        )
+        self.assertEqual(self.client.delete(self.url()).status_code, 405)
 
     def test_invalid_reference_and_audit_failure_roll_back_entire_snapshot(self):
         before = (

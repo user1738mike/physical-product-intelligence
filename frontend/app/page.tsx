@@ -80,8 +80,9 @@ export default function Home() {
       <footer>
         <span>Physical Product Intelligence Cloud</span>
         <p>
-          Product records and packaging APIs are available. Uploads and
-          assessments are not yet available.
+          Product records and packaging APIs are available. Evidence imports
+          require review. Assessments are not yet available.{" "}
+          <Link href="/products">Open product catalog</Link>
         </p>
       </footer>
     </main>

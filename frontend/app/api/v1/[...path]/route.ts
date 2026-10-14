@@ -20,6 +20,9 @@ const RESPONSE_HEADERS = [
   "www-authenticate",
   "x-request-id",
   "location",
+  "content-disposition",
+  "x-content-type-options",
+  "content-security-policy",
 ];
 
 function problem(status: number, detail: string) {
@@ -31,8 +34,8 @@ function problem(status: number, detail: string) {
 
 class BodyTooLarge extends Error {}
 
-async function readBody(request: Request) {
-  if (Number(request.headers.get("content-length")) > MAX_BODY_BYTES)
+async function readBody(request: Request, limit = MAX_BODY_BYTES) {
+  if (Number(request.headers.get("content-length")) > limit)
     throw new BodyTooLarge();
   if (!request.body) return undefined;
   const reader = request.body.getReader();
@@ -43,7 +46,7 @@ async function readBody(request: Request) {
       const { done, value } = await reader.read();
       if (done) break;
       size += value.byteLength;
-      if (size > MAX_BODY_BYTES) {
+      if (size > limit) {
         await reader.cancel();
         throw new BodyTooLarge();
       }
@@ -92,7 +95,15 @@ async function forward(request: Request, context: Context) {
     const method = request.method.toUpperCase();
     const body = ["GET", "HEAD"].includes(method)
       ? undefined
-      : await readBody(request);
+      : await readBody(
+          request,
+          method === "POST" &&
+            path.length === 3 &&
+            path[0] === "organizations" &&
+            path[2] === "imports"
+            ? 3 * 1024 * 1024
+            : MAX_BODY_BYTES,
+        );
     const upstream = await fetch(target, {
       method,
       headers,

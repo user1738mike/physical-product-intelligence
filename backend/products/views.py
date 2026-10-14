@@ -1,3 +1,4 @@
+from django.db.models import Q
 from drf_spectacular.utils import extend_schema
 from rest_framework.exceptions import NotFound
 from rest_framework.response import Response
@@ -6,7 +7,7 @@ from accounts.views import PrivateResponseView
 from organizations.services import authorize
 from organizations.views import page
 
-from . import services
+from . import services, workflows
 from .serializers import (
     EvidenceInput,
     EvidencePage,
@@ -21,6 +22,7 @@ from .serializers import (
     RevisionPage,
     RevisionSerializer,
 )
+from .workflow_serializers import CatalogQuery, ProductEditInput
 
 
 def scoped_product(request, organization_id, product_id):
@@ -29,10 +31,18 @@ def scoped_product(request, organization_id, product_id):
 
 
 class ProductsView(PrivateResponseView):
-    @extend_schema(operation_id="products_list", responses=ProductPage)
+    @extend_schema(operation_id="products_list", responses=ProductPage, parameters=[CatalogQuery])
     def get(self, request, organization_id):
         organization, _ = authorize(request.user, organization_id)
-        return page(request, services.products_in(organization), ProductSerializer)
+        params = services.validated(CatalogQuery, request.query_params.dict())
+        query = services.products_in(organization)
+        if params["search"]:
+            query = query.filter(
+                Q(sku__icontains=params["search"]) | Q(name__icontains=params["search"])
+            )
+        if params["status"] != "all":
+            query = query.filter(is_active=params["status"] == "active")
+        return page(request, query.order_by(params["ordering"], "id"), ProductSerializer)
 
     @extend_schema(request=ProductCreateInput, responses={201: ProductSerializer})
     def post(self, request, organization_id):
@@ -45,6 +55,11 @@ class ProductDetailView(PrivateResponseView):
     def get(self, request, organization_id, product_id):
         product = scoped_product(request, organization_id, product_id)
         product = services.products_in(product.organization).get(pk=product.pk)
+        return Response(ProductSerializer(product).data)
+
+    @extend_schema(request=ProductEditInput, responses=ProductSerializer)
+    def patch(self, request, organization_id, product_id):
+        product = workflows.edit_product(request.user, organization_id, product_id, request.data)
         return Response(ProductSerializer(product).data)
 
 

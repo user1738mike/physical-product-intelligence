@@ -11,6 +11,20 @@ from .views import (
     RevisionDetailView,
     RevisionsView,
 )
+from .workflow_views import (
+    AttributeStatesView,
+    ClaimDetailView,
+    ClaimsView,
+    ConfigurationDetailView,
+    ConfigurationEvidenceView,
+    ConfigurationRevisionsView,
+    ConfigurationStateView,
+    ConfigurationsView,
+    HistoryView,
+    PackagingClaimsView,
+    SelectionView,
+    VerificationView,
+)
 
 urlpatterns = [
     path("", ProductsView.as_view(), name="products"),
@@ -39,3 +53,31 @@ urlpatterns = [
         name="product-packaging-detail",
     ),
 ]
+
+urlpatterns += [
+    path(
+        "<uuid:product_id>/packaging/<uuid:packaging_id>/evidence/",
+        ConfigurationEvidenceView.as_view(),
+    ),
+    path("<uuid:product_id>/packaging/", ConfigurationsView.as_view()),
+    path("<uuid:product_id>/packaging/<uuid:packaging_id>/", ConfigurationDetailView.as_view()),
+    path(
+        "<uuid:product_id>/packaging/<uuid:packaging_id>/state/", ConfigurationStateView.as_view()
+    ),
+    path(
+        "<uuid:product_id>/packaging/<uuid:packaging_id>/revisions/",
+        ConfigurationRevisionsView.as_view(),
+    ),
+]
+for prefix, collection_view in [
+    ("<uuid:product_id>/", ClaimsView),
+    ("<uuid:product_id>/packaging/<uuid:packaging_id>/", PackagingClaimsView),
+]:
+    urlpatterns += [
+        path(prefix + "claims/", collection_view.as_view()),
+        path(prefix + "claims/<uuid:claim_id>/", ClaimDetailView.as_view()),
+        path(prefix + "claims/<uuid:claim_id>/verification/", VerificationView.as_view()),
+        path(prefix + "attributes/", AttributeStatesView.as_view()),
+        path(prefix + "attributes/<str:attribute>/selection/", SelectionView.as_view()),
+        path(prefix + "history/", HistoryView.as_view()),
+    ]

@@ -1,5 +1,5 @@
 from django.db import IntegrityError, transaction
-from django.db.models import Max
+from django.db.models import Max, OuterRef, Subquery
 from rest_framework.exceptions import APIException, NotFound, ValidationError
 
 from audit.services import record
@@ -35,9 +35,20 @@ def validated(serializer_class, data):
 
 
 def products_in(organization):
-    return Product.objects.filter(organization=organization).annotate(
-        latest_revision_number=Max("revisions__number")
-    )
+    latest = ProductRevision.objects.filter(product=OuterRef("pk")).order_by("-number")
+    annotations = {
+        "latest_revision_number": Subquery(latest.values("number")[:1]),
+        "latest_revision_id": Subquery(latest.values("id")[:1]),
+        "modified_by_id": Subquery(latest.values("created_by_id")[:1]),
+        "creator_id": Subquery(
+            ProductRevision.objects.filter(product=OuterRef("pk"))
+            .order_by("number")
+            .values("created_by_id")[:1]
+        ),
+    }
+    for field in ["name", "description", "brand", "manufacturer", "model_number", "category"]:
+        annotations[field] = Subquery(latest.values(field)[:1])
+    return Product.objects.filter(organization=organization).annotate(**annotations)
 
 
 def product_in(organization, product_id, *, lock=False):

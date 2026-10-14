@@ -1,5 +1,7 @@
 # Phase 3 implementation and verification
 
+This report records the initial API foundation. The [Phase 3 completion report](phase3-completion-report.md) supersedes its UI/verification deferrals and records the full master-task implementation and actual final checks.
+
 Date: 2026-10-14, Africa/Nairobi. Existing Phase 1/2 uncommitted changes were preserved. No staging, commit, push or deployment was performed.
 
 ## Delivered domain

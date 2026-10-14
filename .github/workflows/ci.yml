@@ -41,7 +41,8 @@ jobs:
       - run: python manage.py check
       - run: python manage.py makemigrations --check --dry-run
       - run: python manage.py migrate --noinput
-      - run: python manage.py test accounts organizations operations products
+      - run: python manage.py migrate --check
+      - run: python manage.py test accounts organizations operations products ingestion
       - run: python manage.py spectacular --validate --fail-on-warn --file /tmp/openapi.yaml
   frontend:
     runs-on: ubuntu-latest
@@ -73,7 +74,7 @@ jobs:
       - run: docker compose up --build --wait --wait-timeout 240
       - run: docker compose exec -T backend python manage.py migrate --noinput
       - run: docker compose exec -T backend python manage.py migrate --check
-      - run: docker compose exec -T backend python manage.py test accounts organizations operations products --settings=config.settings.test
+      - run: docker compose exec -T backend python manage.py test accounts organizations operations products ingestion --settings=config.settings.test
       - run: python scripts/phase2_smoke.py --allow-create-test-data
       - run: python scripts/phase3_smoke.py --allow-create-test-data
       - run: python scripts/smoke.py
@@ -83,4 +84,4 @@ jobs:
         run: docker compose logs --no-color
       - name: Shutdown
         if: always()
-        run: docker compose down --volumes
+        run: docker compose down

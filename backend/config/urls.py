@@ -16,6 +16,7 @@ from organizations.views import (
 )
 
 urlpatterns = [
+    path("api/v1/organizations/<uuid:organization_id>/imports/", include("ingestion.urls")),
     path("api/v1/organizations/<uuid:organization_id>/products/", include("products.urls")),
     path("admin/", admin.site.urls),
     path("api/v1/auth/csrf/", CsrfView.as_view(), name="auth-csrf"),

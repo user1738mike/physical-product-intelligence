@@ -2,6 +2,8 @@
 
 Status: accepted for Phase 3, 2026-10-14.
 
+Completion note: ADR 0008 extends this initial API foundation with editable catalog workflows, stable packaging identities, attribute claims, authorized physical attestation, conflict selection and a frontend. Existing immutable snapshots and migration history remain compatible.
+
 ## Context
 
 The first business domain must preserve product observations and provenance without undermining Phase 2 tenant authorization. Assessments will later require reproducible inputs. No private file storage, evidence parser or reviewed handling thresholds are available yet.

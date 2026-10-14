@@ -223,11 +223,19 @@ export default function Account() {
                   </button>
                 )}
                 {organization && (
-                  <p>
-                    Current organization: <strong>{organization.name}</strong>.
-                    Your role:{" "}
-                    {selectedMembership?.role ?? "refresh your memberships"}.
-                  </p>
+                  <div>
+                    <p>
+                      Current organization: <strong>{organization.name}</strong>
+                      . Your role:{" "}
+                      {selectedMembership?.role ?? "refresh your memberships"}.
+                    </p>
+                    <Link
+                      className="button-link"
+                      href={`/organizations/${organization.id}/products`}
+                    >
+                      Open product catalog
+                    </Link>
+                  </div>
                 )}
                 {selectedMembership?.organization.is_active === false && (
                   <p>
@@ -262,7 +270,8 @@ export default function Account() {
             </form>
           </section>
           <p>
-            Product ingestion and assessment workflows are not yet available.
+            <Link href="/products">Open your product workspace</Link> to access
+            catalogs and evidence imports. Assessments are not available.
           </p>
         </>
       )}

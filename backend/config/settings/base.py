@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
@@ -18,6 +19,7 @@ INSTALLED_APPS = [
     "organizations",
     "audit",
     "products",
+    "ingestion",
 ]
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
@@ -64,13 +66,55 @@ SESSION_COOKIE_AGE = 8 * 60 * 60
 SESSION_EXPIRE_AT_BROWSER_CLOSE = True
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
-# No public media serving or storage credentials are installed in Phase 1.
+# Private ingestion storage has no public media URL or web route.
+STORAGES = {
+    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
+    "ingestion": {
+        "BACKEND": os.environ.get("INGESTION_STORAGE_BACKEND", "ingestion.storage.PrivateStorage"),
+        "OPTIONS": {
+            "location": os.environ.get(
+                "INGESTION_STORAGE_ROOT", str(BASE_DIR / "media" / "ingestion")
+            ),
+            "file_permissions_mode": 0o600,
+            "directory_permissions_mode": 0o700,
+        },
+    },
+}
+INGESTION_ALLOW_UNSCANNED = False
+INGESTION_SCANNER = os.environ.get("INGESTION_SCANNER", "")
+INGESTION_LIMITS = {
+    "upload_bytes": int(os.environ.get("INGESTION_MAX_BYTES", 2 * 1024**2)),
+    "rows": int(os.environ.get("INGESTION_MAX_ROWS", 200)),
+    "columns": 32,
+    "sheets": 5,
+    "pages": 10,
+    "cell_chars": 2000,
+    "text_chars": 500000,
+    "archive_entries": 128,
+    "unpacked_bytes": 8 * 1024**2,
+    "compression_ratio": 100,
+    "seconds": 20,
+    "storage_bytes": 100 * 1024**2,
+}
+INGESTION_LIMITS = {
+    key: int(os.environ.get(f"INGESTION_LIMIT_{key.upper()}", value))
+    for key, value in INGESTION_LIMITS.items()
+}
+DATA_UPLOAD_MAX_MEMORY_SIZE = 3 * 1024**2
+FILE_UPLOAD_MAX_MEMORY_SIZE = 3 * 1024**2
+DATA_UPLOAD_MAX_NUMBER_FILES = 1
+FILE_UPLOAD_HANDLERS = [
+    "ingestion.uploads.BoundedUploadHandler",
+    "django.core.files.uploadhandler.MemoryFileUploadHandler",
+    "django.core.files.uploadhandler.TemporaryFileUploadHandler",
+]
 REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.IsAuthenticated"],
     "DEFAULT_AUTHENTICATION_CLASSES": ["rest_framework.authentication.SessionAuthentication"],
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "DEFAULT_RENDERER_CLASSES": ["rest_framework.renderers.JSONRenderer"],
-    "DEFAULT_THROTTLE_RATES": {"login": "10/min", "register": "5/hour"},
+    "DEFAULT_THROTTLE_RATES": {"login": "10/min", "register": "5/hour", "imports": "120/hour"},
 }
 SPECTACULAR_SETTINGS = {
     "ENUM_NAME_OVERRIDES": {
@@ -84,7 +128,7 @@ SPECTACULAR_SETTINGS = {
         "AssignableRole": ["admin", "member"],
     },
     "TITLE": "Physical Product Intelligence Cloud API",
-    "DESCRIPTION": "Identity, tenant membership and audit APIs. Product workflows are deferred.",
+    "DESCRIPTION": "Tenant-scoped products, packaging, evidence and reviewable ingestion APIs.",
     "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
 }

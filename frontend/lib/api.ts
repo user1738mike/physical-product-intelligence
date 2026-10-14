@@ -46,7 +46,7 @@ export async function request<T>(
   method = "GET",
   data?: unknown,
 ): Promise<T> {
-  if (!path.startsWith("/api/v1/") || path.includes("..")) {
+  if (!path.startsWith("/api/v1/") || path.split("?")[0].includes("..")) {
     throw new Error("Unsupported API path");
   }
   const headers: Record<string, string> = { Accept: "application/json" };
@@ -62,23 +62,31 @@ export async function request<T>(
       );
     const token: { csrfToken: string } = await tokenResponse.json();
     headers["X-CSRFToken"] = token.csrfToken;
-    if (data !== undefined) headers["Content-Type"] = "application/json";
+    if (data !== undefined && !(data instanceof FormData))
+      headers["Content-Type"] = "application/json";
   }
   const response = await fetch(path, {
     method,
     credentials: "same-origin",
     cache: "no-store",
     headers,
-    ...(data === undefined ? {} : { body: JSON.stringify(data) }),
+    ...(data === undefined
+      ? {}
+      : { body: data instanceof FormData ? data : JSON.stringify(data) }),
   });
   if (!response.ok) {
     const problem = await response.json().catch(() => null);
     let message =
       "Request failed. Check your input and access, then try again.";
     if (problem && typeof problem === "object") {
-      const messages = Object.values(problem)
-        .flat()
-        .filter((value): value is string => typeof value === "string");
+      const collect = (value: unknown): string[] => {
+        if (typeof value === "string") return [value];
+        if (Array.isArray(value)) return value.flatMap(collect);
+        if (value && typeof value === "object")
+          return Object.values(value).flatMap(collect);
+        return [];
+      };
+      const messages = collect(problem);
       if (messages.length) message = messages.join(" ");
     }
     throw new ApiError(response.status, message);
