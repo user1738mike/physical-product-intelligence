@@ -12,7 +12,9 @@ class JsonFormatter(logging.Formatter):
             # Avoid exception messages containing database credentials or input values.
             "event": "application_error" if record.exc_info else record.getMessage(),
         }
-        if record.name in ("django.server", "django.request"):
+        if record.name in ("django.server", "django.request") or record.name.startswith(
+            "django.security"
+        ):
             # Framework request messages can include untrusted query strings.
             payload["event"] = "framework_http_error" if record.levelno >= 40 else "framework_http"
         for field in ("request_id", "method", "path", "status", "duration_ms"):

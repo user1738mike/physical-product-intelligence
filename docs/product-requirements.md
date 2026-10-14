@@ -12,6 +12,8 @@ Phase 0 defines architecture, boundaries, risks and decisions. Phase 1 provides 
 
 Phase 2 introduces identity, organizations, memberships, tenant-scoped authorization and audit events, with adversarial cross-tenant integration tests before any product ingestion. Later milestones add versioned product data, evidence, constraints, reproducible deterministic assessments and exports. Computer vision, physical tests and asynchronous jobs follow when required.
 
+Phase 3 implements the first product API domain: tenant-unique SKUs, immutable complete product revisions, unit/inner/case/pallet profiles, exact metric observations with uncertainty and reference-only evidence provenance. Existing members contribute records; owners/admins control archival. This preserves the current three-role identity model rather than introducing unreviewed analyst/assessor/viewer roles. Product editing screens, captured evidence artifacts, constraints, assessments and exports remain future milestones. Acceptance requires tenant and nested-product isolation, immutable-history and concurrent-revision tests, additive migration checks, validated OpenAPI and a real session/CSRF proxy smoke test.
+
 ## Non-functional requirements
 All customer data is tenant-scoped, traceable and exportable under policy. Assessments preserve immutable input snapshots, units, uncertainty and rule versions. Private storage is accessed through authorized services. Production configuration fails closed. Initial availability target, service limits and latency SLOs are unresolved; measure actual workflows before promising them. Accessibility targets WCAG 2.2 AA and keyboard navigation; formal accessibility review is pending.
 

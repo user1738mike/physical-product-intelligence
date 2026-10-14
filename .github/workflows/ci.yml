@@ -41,7 +41,7 @@ jobs:
       - run: python manage.py check
       - run: python manage.py makemigrations --check --dry-run
       - run: python manage.py migrate --noinput
-      - run: python manage.py test
+      - run: python manage.py test accounts organizations operations products
       - run: python manage.py spectacular --validate --fail-on-warn --file /tmp/openapi.yaml
   frontend:
     runs-on: ubuntu-latest
@@ -67,12 +67,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: cp .env.example .env
+      - run: python -m unittest discover -s scripts -p test_setup_env.py
+      - run: python scripts/setup_env.py
       - run: docker compose config --quiet
       - run: docker compose up --build --wait --wait-timeout 240
       - run: docker compose exec -T backend python manage.py migrate --noinput
       - run: docker compose exec -T backend python manage.py migrate --check
-      - run: docker compose exec -T backend python manage.py test --settings=config.settings.test
+      - run: docker compose exec -T backend python manage.py test accounts organizations operations products --settings=config.settings.test
+      - run: python scripts/phase2_smoke.py --allow-create-test-data
+      - run: python scripts/phase3_smoke.py --allow-create-test-data
       - run: python scripts/smoke.py
       - run: docker build --target production -t ppi-frontend-check ./frontend
       - name: Container logs on failure

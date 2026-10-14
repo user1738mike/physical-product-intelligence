@@ -18,7 +18,9 @@ export default function Home() {
             INTELLIGENCE CLOUD
           </span>
         </Link>
-        <span className="stage">ENGINEERING FOUNDATION · PHASE 01</span>
+        <Link href="/account" className="stage">
+          Sign in / Account
+        </Link>
       </header>
       <section className="hero" aria-labelledby="title">
         <div className="copy">
@@ -77,7 +79,10 @@ export default function Home() {
       </section>
       <footer>
         <span>Physical Product Intelligence Cloud</span>
-        <p>Product ingestion and assessment workflows are not yet available.</p>
+        <p>
+          Product records and packaging APIs are available. Uploads and
+          assessments are not yet available.
+        </p>
       </footer>
     </main>
   );

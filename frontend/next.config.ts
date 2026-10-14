@@ -4,6 +4,8 @@ const config: NextConfig = {
   output: "standalone",
   outputFileTracingRoot: process.cwd(),
   poweredByHeader: false,
+  // Django's versioned API uses trailing slashes; avoid a proxy redirect loop.
+  skipTrailingSlashRedirect: true,
   async headers() {
     return [
       {

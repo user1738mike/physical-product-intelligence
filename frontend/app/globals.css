@@ -207,6 +207,58 @@ a:focus-visible {
   outline: 3px solid var(--accent);
   outline-offset: 6px;
 }
+button:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 3px;
+}
+.account-shell {
+  max-width: 900px;
+  padding-bottom: 60px;
+}
+.account-title {
+  margin-top: 48px;
+  font-size: 36px;
+}
+.account-panel {
+  margin: 24px 0;
+  padding: 24px;
+  border: 1px solid var(--line);
+  background: white;
+}
+.account-panel form {
+  display: grid;
+  gap: 12px;
+  max-width: 480px;
+}
+.account-panel input,
+.account-panel select {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid var(--muted);
+  border-radius: 4px;
+  font: inherit;
+}
+button {
+  padding: 12px 18px;
+  background: var(--accent);
+  color: white;
+  border: 0;
+  border-radius: 4px;
+  font: inherit;
+  cursor: pointer;
+}
+button:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+.text-button {
+  margin-top: 16px;
+  color: var(--accent);
+  background: transparent;
+  text-decoration: underline;
+}
 @media (max-width: 800px) {
   .masthead {
     align-items: flex-start;

@@ -1,4 +1,5 @@
 import importlib
+import io
 import json
 import logging
 import os
@@ -101,6 +102,15 @@ class ProductionSettingsTests(SimpleTestCase):
 
 
 class LoggingTests(SimpleTestCase):
+    def test_configured_server_handler_does_not_leak_query_values(self):
+        logger = logging.getLogger("django.server")
+        output = io.StringIO()
+        self.assertTrue(logger.handlers)
+        with patch.object(logger.handlers[0], "stream", output):
+            logger.warning("GET /?token=private-fixture")
+        self.assertNotIn("private-fixture", output.getvalue())
+        self.assertIn("framework_http", output.getvalue())
+
     def test_framework_request_messages_cannot_leak_query_values(self):
         record = logging.LogRecord(
             "django.server", logging.INFO, "", 0, "GET /?token=private", (), None

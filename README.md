@@ -3,21 +3,31 @@
 Multi-tenant SaaS platform that builds evidence-backed digital profiles of physical products and evaluates their compatibility with handling, inspection, packaging, and automation workflows.
 # Physical Product Intelligence Cloud
 
-A foundation for a multi-tenant product and packaging assessment platform, initially intended for warehouse robotics integrators. Phase 1 implements operational endpoints and a public identification page. Customer authentication, tenant data, uploads and assessment workflows are not yet implemented. Architecture and requirements are in [docs](docs/product-requirements.md).
+A foundation for a multi-tenant product and packaging assessment platform, initially intended for warehouse robotics integrators. Phase 1 provides operational endpoints and a public identification page; Phase 2 adds session authentication, organizations, memberships, tenant authorization and audit history. Phase 3 adds structured product records, immutable packaging revisions, measurements and evidence provenance through tenant-scoped APIs. Uploads, extraction and assessments remain unavailable. Architecture and requirements are in [docs](docs/product-requirements.md).
 
 ## Local development (PowerShell, repository root)
 
-Prerequisites: running Docker Desktop with Linux containers and Compose v2. Host Python 3.13 and Node 24 are optional for checks outside containers. Copy the placeholders, then edit `.env` with local-only values. No database port is exposed to the host.
+Prerequisites: running Docker Desktop with Linux containers and Compose v2, plus Python 3.13 for the standard-library setup script. Host Node 24 is optional for checks outside containers. No database port is exposed to the host.
 
 ```powershell
-Copy-Item .env.example .env
-notepad .env
+python scripts/setup_env.py
+if ($LASTEXITCODE -ne 0) { throw 'Environment setup failed' }
 docker compose config --quiet
+if ($LASTEXITCODE -ne 0) { throw 'Compose configuration failed; check required variables in .env' }
 docker compose up --build --wait --wait-timeout 240
+if ($LASTEXITCODE -ne 0) { throw 'Compose startup failed; inspect Docker and service logs' }
 docker compose exec -T backend python manage.py migrate --noinput
 docker compose exec -T backend python manage.py migrate --check
 python scripts/smoke.py
 ```
+
+The setup script creates `.env` from `.env.example` only when `.env` is absent, generating a cryptographically secure Django secret key and PostgreSQL password with Python's `secrets` module. It never prints credentials and preserves an existing `.env` byte for byte, including on reruns. If using the existing virtual environment, replace `python` with `.\.venv\Scripts\python.exe`. Local credentials are not suitable for production; use the production secret manager procedure instead.
+
+If an existing `.env` is incomplete or still contains placeholders, edit it explicitly; rerunning setup deliberately does not repair or rotate existing credentials. Keep the database and backend on the same `POSTGRES_DB`, `POSTGRES_USER`, and `POSTGRES_PASSWORD` values; changing these does not update an initialized database volume. Stop if `config --quiet` fails. Compose's required-variable errors name the missing setting; shell environment variables take precedence over `.env`. Use `config --quiet` because plain `config` displays resolved secrets. `.env` is ignored by Git; `.env.example` remains tracked.
+
+Compose consumes `POSTGRES_DB`, `POSTGRES_USER`, and `POSTGRES_PASSWORD` in both `db` and `backend`; `DJANGO_SECRET_KEY` and `DJANGO_ALLOWED_HOSTS` are backend-only. The backend's database host/port and development settings module are fixed in Compose. Frontend `API_BACKEND_ORIGIN=http://backend:8000` is server-only and fixed in Compose; host frontend defaults to `http://127.0.0.1:8000`. No public frontend credentials are used.
+
+Verify the setup logic with `python -m unittest discover -s scripts -p test_setup_env.py`.
 
 Open http://localhost:3000. Backend liveness is http://localhost:8000/api/v1/health/live/, database readiness is http://localhost:8000/api/v1/health/ready/, OpenAPI is http://localhost:8000/api/v1/schema/, frontend health is http://localhost:3000/health. Readiness does not check migrations; the explicit migration check above does. Use `docker compose logs -f backend frontend` to inspect logs. Backend source is mounted with reload; frontend source is baked into its development image: after edits run `docker compose up -d --build frontend`. This avoids host/container node_modules conflicts.
 
@@ -26,7 +36,7 @@ docker compose exec -T backend ruff format --check .
 docker compose exec -T backend ruff check .
 docker compose exec -T backend python manage.py check
 docker compose exec -T backend python manage.py makemigrations --check --dry-run
-docker compose exec -T backend python manage.py test --settings=config.settings.test
+docker compose exec -T backend python manage.py test accounts organizations operations products --settings=config.settings.test
 docker compose exec -T backend python manage.py spectacular --validate --fail-on-warn --file /tmp/openapi.yaml
 docker compose exec -T frontend npm run format:check
 docker compose exec -T frontend npm run lint
@@ -49,7 +59,7 @@ python -m venv .venv
 $env:DJANGO_SETTINGS_MODULE = 'config.settings.test'
 $env:TEST_SQLITE = '1'
 .\.venv\Scripts\python.exe backend\manage.py check
-.\.venv\Scripts\python.exe backend\manage.py test operations
+.\.venv\Scripts\python.exe backend\manage.py test accounts organizations operations products
 .\.venv\Scripts\python.exe backend\manage.py spectacular --validate --fail-on-warn --file artifacts\openapi.yaml
 Remove-Item Env:TEST_SQLITE
 Remove-Item Env:DJANGO_SETTINGS_MODULE
@@ -76,6 +86,63 @@ Create `artifacts` before exporting the schema (`New-Item -ItemType Directory -F
 
 See [architecture](docs/system-architecture.md), [domain model](docs/domain-model.md), [threat model](docs/security-threat-model.md), [test strategy](docs/testing-strategy.md), [operations](docs/deployment-and-operations.md) and [ADRs](docs/architecture-decisions). Production settings require explicit secrets and safe host/origin configuration; the development Compose file is not a production deployment. No private files are served and no S3/Celery integrations are claimed.
 
-Phase 2 starts with a custom user/identity decision **before the first customer database is initialized**, organizations, memberships, role policy, membership-derived tenant context and audit events. Django's default auth tables currently exist only as framework foundation; changing user models later requires a migration plan. Implement verified login/invite/revocation flows, then prove two-tenant access denial on every list/detail/write/related-object path before ingesting product data.
+## Accounts and organizations
 
-Execution results and remaining blockers are recorded in `docs/implementation-report.md`.
+After applying migrations, open http://localhost:3000/account to register, sign in, create an organization and select your organization context. Registration uses a case-sensitive username (ASCII letters, digits, dot, underscore and hyphen) and a validated password of at least 12 characters. It never creates staff or superusers. Django's existing `auth.User` is retained to preserve migration history; email identity, email verification, recovery, invitations, MFA and SSO are deferred. An authorized owner/admin may add an already registered user by username through the membership API; no email delivery is claimed.
+
+Existing Django usernames, including Unicode and `@`/`+`, remain valid at login; the registration character policy applies only to new accounts. A newly created organization is added to the selector using its server-returned membership even when it falls beyond the first page. Later pages update roles without duplicating organizations.
+
+Sessions use HttpOnly cookies, SameSite=Lax, an eight-hour absolute expiry and browser-close expiry; production also requires Secure cookies and TLS. The frontend fetches a fresh CSRF token for every mutation, including login/registration, and keeps no authentication secrets in localStorage. Production must route `/api/v1/` directly to Django under the same TLS origin, with explicit HTTPS CSRF trusted origins; no permissive CORS is installed. If using the standalone frontend proxy instead, set `API_BACKEND_ORIGIN` in the server runtime environment and verify its Origin behavior in staging. Development trusts only localhost/127.0.0.1 frontend origins on port 3000.
+
+The server-only `/api/v1/[...path]` route forwards requests with Node fetch to the configured backend, replacing the rewrite proxy that produced intermittent `ECONNRESET` failures. It preserves Django trailing slashes, session/CSRF cookies and Origin, limits request bodies to 64 KiB, sets a 30-second upstream timeout, and returns non-cacheable responses. Transport failures return a generic 502 without logging credentials or automatically replaying requests. No global HTTP-agent preload is required. The live smoke test defaults to 200 consecutive CSRF/profile reads and also checks missing CSRF, hostile origins, cookie attributes, roles, revocation and logout replay denial. Run it only against a disposable database.
+
+The production Dockerfile packages `.next/static` alongside the standalone server. For a native standalone run, copy `frontend/.next/static` into `frontend/.next/standalone/.next/static` after each build before `npm run start`; otherwise generated stylesheet URLs return 404.
+
+| Action | Owner | Admin | Member |
+| --- | --- | --- | --- |
+| View organization and members | Yes | Yes | Yes |
+| Rename organization / add or remove ordinary members | Yes | Yes | No |
+| Add/remove admins / change non-owner roles | Yes | No | No |
+| Transfer ownership / suspend or reactivate | Yes | No | No |
+| Read organization audit events | Yes | Yes | No |
+
+The owner cannot be removed or demoted; transfer atomically promotes an existing active member and makes the former owner an admin. A database constraint permits at most one owner; service transactions preserve an owner on every supported operation. Suspended tenants deny protected operations; only their owner may reactivate them. Staff privileges provide no tenant API bypass. Administrators cannot edit owner/admin privileges. Slugs are immutable, and hard organization deletion is unavailable. If an owner account is deactivated, an authorized operator must restore that account before transferring ownership; there is no automatic takeover.
+
+API contract is available at `/api/v1/schema/`:
+
+| Endpoint | Method / behavior |
+| --- | --- |
+| `/api/v1/auth/csrf/` | GET masked CSRF token; session cookie is never exposed |
+| `/api/v1/auth/register/`, `/login/`, `/logout/` | POST account creation, login, logout (the latter paths share `/api/v1/auth/`) |
+| `/api/v1/auth/me/`, `/api/v1/auth/memberships/` | GET current profile and paginated memberships |
+| `/api/v1/organizations/` | POST `{name, slug}`; caller becomes owner |
+| `/api/v1/organizations/{id}/` | GET; PATCH `{name}` |
+| `/api/v1/organizations/{id}/members/` | GET; POST `{username, role}` (`member` default; `admin` owner-only) |
+| `/api/v1/organizations/{id}/members/{membership_id}/` | GET; PATCH `{role}` owner-only; DELETE authorized removal |
+| `/api/v1/organizations/{id}/transfer/` | POST `{membership_id}` owner-only |
+| `/api/v1/organizations/{id}/state/` | POST `{is_active}` owner-only |
+| `/api/v1/organizations/{id}/audit/` | GET paginated read-only history |
+
+Collections have 25-item pages with `count`, `next`, `previous`, `results`. Inaccessible tenants/nested objects return 404; role/session denials return 403; duplicate organization slugs return 409. Unknown or ownership/organization fields are rejected. All unsafe requests need the token from `auth/csrf/` in `X-CSRFToken`, plus the cookies. Auth errors are generic. Login is limited to 10/minute, registration to 5/hour, using best-effort per-process DRF throttles; shared ingress protection is still required in production. Account responses omit password hashes, email and privilege flags.
+
+For trusted operator administration, run `docker compose exec backend python manage.py createsuperuser` interactively and visit http://localhost:8000/admin/. Tenant/audit admin pages are read-only; use the authorized APIs to mutate tenant state. Never grant staff privileges through public registration. Restrict `/admin/` at production ingress and collect/serve its static assets separately.
+
+Optional live authentication smoke (creates disposable accounts/organizations; run only against a disposable test database):
+
+```powershell
+python scripts/phase2_smoke.py --allow-create-test-data
+```
+
+The backend tests include CSRF-enforced clients, session revocation, two-tenant read/write/nested denials, role constraints, transaction rollback, audit preservation, product provenance/measurement validation and PostgreSQL concurrent ownership transfers and revision creation. SQLite skips the row-lock tests. See [Phase 2 report](docs/phase2-implementation-report.md), [Phase 3 report](docs/phase3-implementation-report.md) and [roadmap](docs/engineering/phase-roadmap.md) for actual acceptance results and runtime blockers.
+
+## Product and packaging APIs
+
+Phase 3 is an API domain; product editing screens are not implemented. Start with the [API guide and request examples](docs/product-api.md). All routes are under `/api/v1/organizations/{organization_id}/products/`, protected by current membership and session/CSRF authentication. Owners, admins and members can read and contribute product revisions/evidence. Owners/admins alone can archive/reactivate products. Staff has no implicit tenant access. Archived products retain readable history and reject new revisions/evidence. Suspended tenants deny all product access.
+
+Products have tenant-unique, case-sensitive immutable SKUs. Creation writes revision 1 atomically; subsequent writes append complete immutable snapshots with sequential revision numbers. Packaging supports unit/inner/case/pallet containment. Measurements preserve original decimals, exact metric normalization, optional uncertainty bounds, observation method/time and required evidence references. Missing measurements remain unknown and conflicting observations remain separate.
+
+Evidence records retain attribution, declared license, source reference, observed/recorded times and recording user. `capture_status=reference_only` and `declared_sha256` explicitly describe unverified metadata: this phase does not upload, fetch, store or inspect evidence files. Mutable URLs alone do not provide reproducible captured artifacts. Correct records by adding new evidence/revisions; hard deletion and historical edits are unavailable. Retention and verified artifact capture remain release work.
+
+On a disposable database only, run `python scripts/phase3_smoke.py --allow-create-test-data` to verify the full workflow through Next.js. It creates and retains fixture accounts, tenants, products and evidence; never run it on customer data. CI runs both Phase 2 and Phase 3 smoke checks.
+
+Historical Phase 1 execution results remain in `docs/implementation-report.md`.

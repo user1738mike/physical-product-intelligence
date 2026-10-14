@@ -18,7 +18,8 @@ for url, service in [
 with urlopen("http://127.0.0.1:3000/", timeout=10) as response:
     html = response.read().decode()
     assert "Physical Product Intelligence Cloud" in html
-    assert "Product ingestion and assessment workflows are not yet available." in html
+    assert "Product records and packaging APIs are available." in html
+    assert "Uploads and assessments are not yet available." in html
     stylesheets = re.findall(r'href="(/_next/static/[^"?]+\.css)', html)
     assert stylesheets, "Landing page stylesheet missing"
 for stylesheet in stylesheets:

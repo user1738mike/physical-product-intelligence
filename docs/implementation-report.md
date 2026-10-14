@@ -1,5 +1,48 @@
 # Phase 0 and Phase 1 implementation report
 
+## Environment setup follow-up — 2026-10-14 (Africa/Nairobi)
+
+The original missing-variable errors were caused by having no local `.env`; Compose does not load `.env.example` automatically. At this follow-up's initial inspection, `.env` already existed with all four required values, including template credential placeholders. It was ignored and untracked. Its contents were never printed and its SHA-256 comparison before/after setup confirmed byte-for-byte preservation.
+
+Changed `.env.example` comments and README setup instructions, added `scripts/setup_env.py` and four focused tests in `scripts/test_setup_env.py`, and replaced CI's template copy with the same tested generator. Compose, backend settings, dependencies and `.gitignore` already had the required configuration and were preserved. This report records the follow-up results separately from the historical implementation below.
+
+The setup script copies the example only when `.env` is absent, generates separate Django/PostgreSQL credentials with standard-library `secrets.token_hex(32)`, does not print them, and uses exclusive file creation to prevent overwriting a concurrent setup. Existing files are preserved even if incomplete; Compose retains required-variable validation. Non-secret development defaults remain `ppi` for database/user and loopback/backend allowed hosts. Both database and backend consume the same PostgreSQL variables. Production settings and their missing/unsafe-key rejection were unchanged and tested.
+
+Commands and actual results (repository root unless specified):
+
+| Commands/checks | Result |
+| --- | --- |
+| `git status --short`, source/settings/setup inspection | Initially clean; no existing setup generator; existing local `.env` found |
+| `.\.venv\Scripts\python.exe -m unittest discover -s scripts -p test_setup_env.py` | Four tests passed: generation/no console disclosure, rerun preservation, invalid template, concurrent creation |
+| `.\.venv\Scripts\python.exe scripts/setup_env.py` | Existing `.env` preserved; private before/after file-hash comparison passed |
+| `.\.venv\Scripts\ruff.exe format --check backend scripts` and `ruff.exe check backend scripts` | Passed for all 18 files after formatting only the two new scripts; initial format check correctly identified those files |
+| With `DJANGO_SETTINGS_MODULE=config.settings.test`, `TEST_SQLITE=1`: `.\.venv\Scripts\python.exe backend/manage.py check` | No issues |
+| Same environment: `backend/manage.py makemigrations --check --dry-run` | No changes detected |
+| Same environment: `backend/manage.py test operations` | Nine tests passed, including production missing-variable/unsafe-secret rejection; SQLite smoke coverage, not PostgreSQL integration |
+| Same environment: `backend/manage.py spectacular --validate --fail-on-warn --file artifacts/openapi-env-check.yaml` | Passed |
+| In `frontend`: `npm.cmd run format:check`, `npm.cmd run lint`, `npm.cmd run typecheck`, `npm.cmd test` | All passed; two frontend tests |
+| `docker compose config --quiet` | Passed, using preserved local `.env`; quiet mode avoids disclosing resolved credentials |
+| Generator exercised in ignored `artifacts/env-config-check`, then `docker compose --env-file artifacts/env-config-check/.env config --quiet` | Fresh generated environment passed; no generated credentials displayed |
+| Private JSON capture from `docker compose --env-file artifacts/env-config-check/.env config --format json` | Verified database/backend credential references match; JSON was not printed or logged |
+| `docker compose --env-file artifacts/env-config-check/empty.env config --quiet` with private output capture | Empty configuration correctly rejected with an actionable required-variable message |
+| `docker compose up --build -d` | PostgreSQL image pulled and both application images built successfully. Startup failed: `all predefined address pools have been fully subnetted` |
+| `docker compose ps`, `docker compose ps -a` | No project containers listed |
+| `docker compose logs --no-color --tail 30` | No service logs available because startup failed before services ran |
+| Read-only `docker network ls`, bridge IPAM inspection, `docker info --format '{{json .DefaultAddressPools}}'` | Docker has many existing bridge networks; bridge uses `172.17.0.0/16`; no custom default pools reported. No networks were removed or modified |
+| `.\.venv\Scripts\python.exe scripts/smoke.py` | Failed at backend liveness with connection refused; no successful HTTP smoke claimed |
+| Separate probes of backend liveness, database readiness and frontend health | All unreachable; live service verification remains incomplete |
+| `git check-ignore .env .env.local .env.production backend/.env frontend/.env artifacts/env-config-check/.env` | Local environment files ignored; `.env.example` remains tracked |
+| `git ls-files .env`, `git diff --cached --name-only` | No tracked/staged `.env`; nothing staged |
+| `git diff --check` | Passed; Git emitted only existing LF/CRLF conversion notices |
+
+Initial sandbox execution could not access the installed Python executable/Docker configuration and API. Approved execution allowed the checks above and confirmed Docker Desktop is available. An initial individual HTTP probe had a shell quoting error; the corrected probe ran against all three endpoints. No application checks were suppressed.
+
+After the user explicitly authorized replacing only template credentials, a separate local operation replaced the exact placeholder assignments for `DJANGO_SECRET_KEY` and `POSTGRES_PASSWORD` using `secrets.token_hex(32)`. Every other line, including line endings, was preserved byte for byte. Generated values were never displayed. `docker compose config --quiet` passed again; `.env` remains ignored, untracked and unstaged. The setup script itself continues to preserve existing files on reruns. No database credential alteration or volume reset was performed.
+
+Remaining issues: Docker's host address pools are exhausted, preventing the normal Compose network from being created. Resolve host network allocation before rerunning README startup/migrations/PostgreSQL tests/smoke verification. Do not prune networks or delete volumes without reviewing other projects. Local credentials must never be used in production. No database migrations or container integration tests could run; no database/backend/frontend health check passed. Frontend-to-backend application calls do not exist in Phase 1; smoke checks probe the services independently.
+
+Final source changes are `.env.example`, `.github/workflows/ci.yml`, `README.md`, this report, and the two new setup scripts. Only the authorized local template credentials were replaced; no existing developer secrets, database data, volumes or networks were deleted or overwritten. Ignored verification artifacts remain local. Phase 2 has not started. No commit, staging or push was performed.
+
 Date: 2026-10-13 (Africa/Nairobi). Repository was empty except for `.git`; `master` had no commits. No existing source was overwritten. No commit or push was performed.
 
 ## Delivered

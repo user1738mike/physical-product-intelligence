@@ -41,6 +41,7 @@ services:
       target: development
     environment:
       NEXT_TELEMETRY_DISABLED: "1"
+      API_BACKEND_ORIGIN: http://backend:8000
     ports: ["127.0.0.1:3000:3000"]
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/health').then(r => {if (!r.ok) process.exit(1)}).catch(() => process.exit(1))"]
