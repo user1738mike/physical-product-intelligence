@@ -9,10 +9,10 @@ from rest_framework import status
 from rest_framework.exceptions import NotFound, PermissionDenied
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
-from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
 from audit.services import record
+from operations.throttling import SharedRateThrottle
 
 from .serializers import (
     CredentialsSerializer,
@@ -45,7 +45,7 @@ class CsrfView(PrivateResponseView):
 @method_decorator(csrf_protect, name="dispatch")
 class RegisterView(PrivateResponseView):
     permission_classes = [AllowAny]
-    throttle_classes = [ScopedRateThrottle]
+    throttle_classes = [SharedRateThrottle]
     throttle_scope = "register"
 
     @extend_schema(
@@ -66,7 +66,7 @@ class RegisterView(PrivateResponseView):
 @method_decorator(csrf_protect, name="dispatch")
 class LoginView(PrivateResponseView):
     permission_classes = [AllowAny]
-    throttle_classes = [ScopedRateThrottle]
+    throttle_classes = [SharedRateThrottle]
     throttle_scope = "login"
 
     @extend_schema(

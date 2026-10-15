@@ -14,16 +14,16 @@ def setup_env(root=ROOT):
 
     template = (root / ".env.example").read_text(encoding="utf-8")
     replacements = {
-        "POSTGRES_PASSWORD=replace-with-local-password": f"POSTGRES_PASSWORD={secrets.token_hex(32)}",
+        "POSTGRES_PASSWORD=replace-with-local-password": (
+            f"POSTGRES_PASSWORD={secrets.token_hex(32)}"
+        ),
         "DJANGO_SECRET_KEY=replace-with-local-development-key": (
             f"DJANGO_SECRET_KEY={secrets.token_hex(32)}"
         ),
     }
     for placeholder, replacement in replacements.items():
         if template.splitlines().count(placeholder) != 1:
-            raise ValueError(
-                "Expected exactly one credential placeholder in .env.example"
-            )
+            raise ValueError("Expected exactly one credential placeholder in .env.example")
         template = template.replace(placeholder, replacement)
 
     # Exclusive creation also protects against another setup process creating the file.
@@ -33,9 +33,7 @@ def setup_env(root=ROOT):
     except FileExistsError:
         print("Existing .env preserved; no credentials changed.")
         return False
-    print(
-        "Created local .env with generated development credentials. Values are not displayed."
-    )
+    print("Created local .env with generated development credentials. Values are not displayed.")
     return True
 
 

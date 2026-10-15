@@ -29,9 +29,7 @@ class SetupEnvTests(unittest.TestCase):
                 for key in ("DJANGO_SECRET_KEY", "POSTGRES_PASSWORD"):
                     self.assertRegex(values[key], r"^[a-f0-9]{64}$")
                     self.assertNotIn(values[key], output.getvalue())
-                self.assertNotEqual(
-                    values["DJANGO_SECRET_KEY"], values["POSTGRES_PASSWORD"]
-                )
+                self.assertNotEqual(values["DJANGO_SECRET_KEY"], values["POSTGRES_PASSWORD"])
                 self.assertEqual(values["POSTGRES_DB"], "ppi")
                 self.assertEqual(values["POSTGRES_USER"], "ppi")
                 self.assertEqual((root / ".env.example").read_text(), template)

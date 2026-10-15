@@ -1,0 +1,56 @@
+# Deployment recipe only. Requires separately approved TLS ingress and managed PostgreSQL.
+# Do not combine with compose.yaml or use development .env credentials.
+name: ppi-production
+services:
+  backend:
+    image: ${PPI_BACKEND_IMAGE:?Set a reviewed immutable backend image reference}
+    env_file: ["${PPI_PRODUCTION_ENV_FILE:?Set the protected server configuration file path}"]
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.production
+      INGESTION_STORAGE_ROOT: /var/lib/ppi/private
+      INGESTION_SCANNER: ingestion.scanning.clamd_scan
+    init: true
+    restart: unless-stopped
+    stop_grace_period: 65s
+    read_only: true
+    tmpfs: ["/tmp:size=64m,mode=1777"]
+    volumes: ["private_evidence:/var/lib/ppi/private"]
+    expose: ["8000"]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    mem_limit: 1g
+    cpus: 2
+    pids_limit: 128
+    healthcheck:
+      # The TLS ingress must probe /api/v1/health/ready/ as well.
+      test: ["CMD", "python", "-c", "import os; import django; os.environ.setdefault('DJANGO_SETTINGS_MODULE','config.settings.production'); django.setup(); from django.test import Client; from django.conf import settings; r=Client().get('/api/v1/health/ready/', secure=True, HTTP_HOST=settings.ALLOWED_HOSTS[0]); raise SystemExit(0 if r.status_code==200 else 1)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+  frontend:
+    image: ${PPI_FRONTEND_IMAGE:?Set a reviewed immutable standalone frontend image reference}
+    environment:
+      NODE_ENV: production
+      NEXT_TELEMETRY_DISABLED: "1"
+      API_BACKEND_ORIGIN: ${PPI_API_BACKEND_ORIGIN:?Set a validated internal HTTPS API origin}
+    init: true
+    restart: unless-stopped
+    stop_grace_period: 20s
+    read_only: true
+    tmpfs: ["/tmp:size=32m,mode=1777"]
+    expose: ["3000"]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    mem_limit: 768m
+    cpus: 1
+    pids_limit: 128
+    depends_on:
+      backend: {condition: service_healthy}
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+volumes:
+  private_evidence:

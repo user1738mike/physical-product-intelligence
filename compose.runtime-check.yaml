@@ -1,0 +1,7 @@
+# Local production-server verification using development settings and loopback HTTP ports.
+services:
+  backend:
+    command: ["gunicorn", "config.wsgi:application", "--config", "gunicorn.conf.py"]
+  frontend:
+    build:
+      target: production

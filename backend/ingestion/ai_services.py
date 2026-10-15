@@ -7,7 +7,8 @@ import uuid
 from datetime import timedelta
 from decimal import Decimal
 
-from django.db import transaction
+from django.conf import settings
+from django.db import connection, transaction
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
@@ -126,6 +127,10 @@ class Unavailable(ValidationError):
 def claim(actor, org, job_id, values):
     job = services.job_in(actor, org, job_id, lock=True, reviewer=True)
     require_ai(job)
+    if connection.vendor == "postgresql":
+        # Serialize admission across tenants/instances; no lock is held during provider work.
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT pg_advisory_xact_lock(73412891)")
     if job.status in {"awaiting_review", "completed", "completed_with_errors", "cancelled"}:
         return job, None
     if (
@@ -145,6 +150,15 @@ def claim(actor, org, job_id, values):
     if not ready:
         raise Unavailable(category)
     source_valid(job)
+    if (
+        ImportJob.objects.filter(
+            mode="ai", status="processing", started_at__gt=timezone.now() - timedelta(seconds=90)
+        )
+        .exclude(pk=job.pk)
+        .count()
+        >= settings.AI_EXTRACTION_MAX_CONCURRENT
+    ):
+        raise catalog.Conflict("Extraction processing capacity reached; wait or cancel stale work.")
     if (
         ImportJob.objects.filter(
             organization=job.organization,

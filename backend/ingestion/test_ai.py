@@ -111,6 +111,37 @@ class ExtractionTests(Fixture, TestCase):
     def setUp(self):
         self.setup_ai()
 
+    @override_settings(AI_EXTRACTION_MAX_CONCURRENT=1)
+    def test_global_capacity_includes_other_tenants_and_releases_expired_leases(self):
+        foreign_product = catalog.create_product(
+            self.other,
+            self.foreign.pk,
+            {"sku": "CAPACITY", "revision": {"name": "Capacity fixture", "change_reason": "Test"}},
+        )
+        foreign_source = services.upload(self.other, self.foreign.pk, file())
+        foreign_job = ai_services.start(
+            self.other,
+            self.foreign.pk,
+            foreign_source.pk,
+            {
+                "request_id": uuid.uuid4(),
+                "product_id": foreign_product.pk,
+                "packaging_id": None,
+            },
+        )
+        ai_services.claim(self.other, self.foreign.pk, foreign_job.pk, {"expected_version": 1})
+        own = self.start()
+        with self.assertRaises(catalog.Conflict):
+            ai_services.claim(self.owner, self.org.pk, own.pk, {"expected_version": own.version})
+        ImportJob.objects.filter(pk=foreign_job.pk).update(
+            started_at=timezone.now() - timedelta(seconds=91)
+        )
+        claimed, lease = ai_services.claim(
+            self.owner, self.org.pk, own.pk, {"expected_version": own.version}
+        )
+        self.assertEqual(claimed.status, "processing")
+        self.assertIsNotNone(lease)
+
     def test_source_parsing_supports_unstructured_text_and_real_locations(self):
         segments = parsers.parse(self.source, {"_ai_segments": True})["segments"]
         self.assertIn("Ignore prior instructions", segments[0]["text"])

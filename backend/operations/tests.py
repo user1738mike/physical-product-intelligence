@@ -4,6 +4,8 @@ import json
 import logging
 import os
 import sys
+import tempfile
+from pathlib import Path
 from unittest.mock import patch
 
 from django.core.exceptions import ImproperlyConfigured
@@ -57,7 +59,8 @@ class ProductionSettingsTests(SimpleTestCase):
         "DJANGO_CSRF_TRUSTED_ORIGINS": "https://app.example.com",
         "POSTGRES_DB": "ppi",
         "POSTGRES_USER": "ppi",
-        "POSTGRES_PASSWORD": "test-fixture-only",
+        "POSTGRES_PASSWORD": "8wX2!nmQ7#tL4@zV9$rH6&dK",
+        "INGESTION_STORAGE_ROOT": str(Path(tempfile.gettempdir()) / "ppi-private-fixture"),
         "POSTGRES_HOST": "db",
         "POSTGRES_PORT": "5432",
     }
@@ -85,6 +88,12 @@ class ProductionSettingsTests(SimpleTestCase):
             ("DJANGO_ALLOWED_HOSTS", "*"),
             ("DJANGO_CSRF_TRUSTED_ORIGINS", "http://app.example.com"),
             ("DJANGO_CSRF_TRUSTED_ORIGINS", "https://*.example.com"),
+            ("POSTGRES_PASSWORD", "password"),
+            ("DJANGO_ALLOWED_HOSTS", ".example.com"),
+            ("INGESTION_STORAGE_ROOT", "relative/public"),
+            ("TRUSTED_PROXY_CIDRS", "0.0.0.0/0"),
+            ("TRUSTED_PROXY_CIDRS", "not-a-network"),
+            ("DJANGO_TRUST_PROXY", "true"),
         ]:
             with self.subTest(key=key, value=value):
                 with self.assertRaises(ImproperlyConfigured):
@@ -97,7 +106,9 @@ class ProductionSettingsTests(SimpleTestCase):
         self.assertTrue(settings.SESSION_COOKIE_SECURE)
         self.assertTrue(settings.CSRF_COOKIE_SECURE)
         self.assertFalse(hasattr(settings, "SECURE_PROXY_SSL_HEADER"))
-        trusted = self.load_settings({**self.config, "DJANGO_TRUST_PROXY": "true"})
+        trusted = self.load_settings(
+            {**self.config, "DJANGO_TRUST_PROXY": "true", "TRUSTED_PROXY_CIDRS": "127.0.0.1/32"}
+        )
         self.assertEqual(trusted.SECURE_PROXY_SSL_HEADER, ("HTTP_X_FORWARDED_PROTO", "https"))
 
 

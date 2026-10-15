@@ -15,6 +15,10 @@ services:
       retries: 20
     restart: unless-stopped
   backend:
+    init: true
+    restart: unless-stopped
+    stop_grace_period: 35s
+    user: "${PPI_CONTAINER_UID:-10001}:${PPI_CONTAINER_GID:-10001}"
     build:
       context: ./backend
       args:
@@ -33,7 +37,7 @@ services:
       AI_EXTRACTION_MODEL: ${AI_EXTRACTION_MODEL:-}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
     command: ["python", "manage.py", "runserver", "0.0.0.0:8000"]
-    ports: ["127.0.0.1:8000:8000"]
+    ports: ["127.0.0.1:${PPI_BACKEND_PORT:-8000}:8000"]
     volumes: ["./backend:/app"]
     depends_on:
       db: { condition: service_healthy }
@@ -43,13 +47,18 @@ services:
       timeout: 5s
       retries: 10
   frontend:
+    init: true
+    restart: unless-stopped
+    stop_grace_period: 20s
     build:
       context: ./frontend
       target: development
     environment:
       NEXT_TELEMETRY_DISABLED: "1"
       API_BACKEND_ORIGIN: http://backend:8000
-    ports: ["127.0.0.1:3000:3000"]
+    ports: ["127.0.0.1:${PPI_FRONTEND_PORT:-3000}:3000"]
+    depends_on:
+      backend: { condition: service_healthy }
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/health').then(r => {if (!r.ok) process.exit(1)}).catch(() => process.exit(1))"]
       interval: 10s

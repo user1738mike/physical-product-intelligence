@@ -4,3 +4,6 @@ line-length = 100
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["accounts", "audit", "compatibility", "config", "ingestion", "operations", "organizations", "products"]

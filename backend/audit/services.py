@@ -1,3 +1,7 @@
+import logging
+
+from django.db import transaction
+
 from .models import AuditEvent
 
 
@@ -16,7 +20,7 @@ def record(
         value not in {"owner", "admin", "member"} for value in metadata.values()
     ):
         raise ValueError("Unsupported audit metadata")
-    return AuditEvent.objects.create(
+    result = AuditEvent.objects.create(
         action=action,
         actor=actor,
         organization=organization,
@@ -25,3 +29,9 @@ def record(
         outcome=outcome,
         metadata=metadata,
     )
+    transaction.on_commit(
+        lambda: logging.getLogger("operations.audit").info(
+            "audit_event", extra={"action": action, "outcome": outcome}
+        )
+    )
+    return result

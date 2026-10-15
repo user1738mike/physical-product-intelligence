@@ -15,9 +15,7 @@ class Browser:
         self.cookies = CookieJar()
         self.http = build_opener(HTTPCookieProcessor(self.cookies))
 
-    def request(
-        self, path, *, data=None, expected=200, method=None, csrf=True, origin=ORIGIN
-    ):
+    def request(self, path, *, data=None, expected=200, method=None, csrf=True, origin=ORIGIN):
         method = method or ("GET" if data is None else "POST")
         headers = {"Origin": origin, "Accept": "application/json"}
         if method not in {"GET", "HEAD", "OPTIONS"} and csrf:
@@ -71,15 +69,9 @@ def main():
         browser = Browser()
         username = "smoke-" + secrets.token_hex(8)
         credentials = {"username": username, "password": secrets.token_hex(24)}
-        browser.request(
-            "/api/v1/auth/login/", data=credentials, csrf=False, expected=403
-        )
-        browser.request(
-            "/api/v1/auth/register/", data=credentials, csrf=False, expected=403
-        )
-        profile = browser.request(
-            "/api/v1/auth/register/", data=credentials, expected=201
-        )
+        browser.request("/api/v1/auth/login/", data=credentials, csrf=False, expected=403)
+        browser.request("/api/v1/auth/register/", data=credentials, csrf=False, expected=403)
+        profile = browser.request("/api/v1/auth/register/", data=credentials, expected=201)
         authenticated = browser.request("/api/v1/auth/login/", data=credentials)
         assert profile == authenticated == browser.request("/api/v1/auth/me/")
         cookies = {cookie.name: cookie for cookie in browser.cookies}
@@ -138,9 +130,7 @@ def main():
     second.request(member_path, method="PATCH", data={"role": "member"}, expected=403)
     first.request(member_path, method="DELETE", expected=204)
     second.request(tenant, expected=404)
-    old_session = next(
-        cookie.value for cookie in first.cookies if cookie.name == "sessionid"
-    )
+    old_session = next(cookie.value for cookie in first.cookies if cookie.name == "sessionid")
     first.request("/api/v1/auth/logout/", data={}, expected=204)
     first.request("/api/v1/auth/me/", expected=403)
     replay = Browser()

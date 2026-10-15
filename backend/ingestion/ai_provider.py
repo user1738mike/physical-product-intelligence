@@ -36,6 +36,9 @@ def availability():
 
 
 class OpenAIProvider:
+    def __init__(self, max_output_tokens=2500):
+        self.max_output_tokens = max(100, min(2500, max_output_tokens))
+
     def extract(self, segments):
         from openai import APIConnectionError, APIStatusError, APITimeoutError, OpenAI
 
@@ -72,7 +75,7 @@ class OpenAIProvider:
                             "schema": SCHEMA,
                         }
                     },
-                    max_output_tokens=2500,
+                    max_output_tokens=self.max_output_tokens,
                 )
         except APITimeoutError:
             raise ProviderFailure("timeout", True) from None
@@ -99,8 +102,8 @@ class OpenAIProvider:
         }
 
 
-def configured_provider():
+def configured_provider(*, max_output_tokens=2500):
     ready, category = availability()
     if not ready:
         raise ProviderFailure(category)
-    return OpenAIProvider()
+    return OpenAIProvider(max_output_tokens=max_output_tokens)

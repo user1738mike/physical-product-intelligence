@@ -6,9 +6,7 @@ import secrets
 from phase2_smoke import Browser
 
 
-def catalog_workflows(
-    first, second, base, collection, source, other_base, other_source
-):
+def catalog_workflows(first, second, base, collection, source, other_base, other_source):
     product = first.request(base)
     edited = first.request(
         base,
@@ -31,9 +29,7 @@ def catalog_workflows(
         expected=409,
     )
     assert (
-        first.request(
-            collection + "?search=Catalog%20edited&status=active&ordering=name"
-        )["count"]
+        first.request(collection + "?search=Catalog%20edited&status=active&ordering=name")["count"]
         == 1
     )
     packing = first.request(
@@ -105,13 +101,8 @@ def catalog_workflows(
     verify_url = pack_base + f"claims/{estimate['id']}/verification/"
     second.request(verify_url, data=verification, expected=403)
     measured = first.request(verify_url, data=verification, expected=201)
-    assert (
-        measured["basis"] == "measured"
-        and measured["verification_record"]["verified_by_id"]
-    )
-    assert (
-        first.request(pack_base + f"claims/{estimate['id']}/")["basis"] == "estimated"
-    )
+    assert measured["basis"] == "measured" and measured["verification_record"]["verified_by_id"]
+    assert first.request(pack_base + f"claims/{estimate['id']}/")["basis"] == "estimated"
     state = next(
         row
         for row in first.request(pack_base + "attributes/")["results"]
@@ -122,12 +113,8 @@ def catalog_workflows(
         "claim_id": measured["id"],
         "rationale": "Prefer the documented physical observation for this sample.",
     }
-    second.request(
-        pack_base + "attributes/mass/selection/", data=selection, expected=403
-    )
-    first.request(
-        pack_base + "attributes/mass/selection/", data=selection, expected=201
-    )
+    second.request(pack_base + "attributes/mass/selection/", data=selection, expected=403)
+    first.request(pack_base + "attributes/mass/selection/", data=selection, expected=201)
     state = next(
         row
         for row in first.request(pack_base + "attributes/")["results"]
@@ -141,10 +128,7 @@ def catalog_workflows(
         for row in first.request(pack_base + "attributes/")["results"]
         if row["attribute"] == "mass"
     )
-    assert (
-        state["status"] == "resolved"
-        and state["selected_claim"]["id"] == measured["id"]
-    )
+    assert state["status"] == "resolved" and state["selected_claim"]["id"] == measured["id"]
     first.request(pack_base + "claims/", data={**claim, "value": "1400"}, expected=201)
     state = next(
         row
@@ -176,9 +160,7 @@ def main():
         browser = Browser()
         username = "product-smoke-" + secrets.token_hex(8)
         credentials = {"username": username, "password": secrets.token_hex(24)}
-        profile = browser.request(
-            "/api/v1/auth/register/", data=credentials, expected=201
-        )
+        profile = browser.request("/api/v1/auth/register/", data=credentials, expected=201)
         browser.request("/api/v1/auth/login/", data=credentials)
         org = browser.request(
             "/api/v1/organizations/",
@@ -213,9 +195,7 @@ def main():
         fixtures.append((browser, profile, org, collection, base, source))
 
     first, _, org, collection, base, source = fixtures[0]
-    second, other_profile, other_org, other_collection, other_base, other_source = (
-        fixtures[1]
-    )
+    second, other_profile, other_org, other_collection, other_base, other_source = fixtures[1]
     first.request(other_collection, expected=404)
     first.request(other_base, expected=404)
     first.request(
@@ -314,7 +294,9 @@ def main():
     first.request("/api/v1/auth/logout/", data={}, expected=204)
     first.request(base, expected=403)
     print(
-        "PASS product proxy: catalog search/edit, packaging lifecycle, reported/estimated/verified claims, conflict selection, exact units, scoped history, CSRF, tenant denial, revocation and logout"
+        "PASS product proxy: catalog search/edit, packaging lifecycle, reported/estimated/verified "
+        "claims, conflict selection, exact units, scoped history, CSRF, tenant denial, "
+        "revocation and logout"
     )
 
 

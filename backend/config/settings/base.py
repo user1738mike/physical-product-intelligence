@@ -23,6 +23,7 @@ INSTALLED_APPS = [
     "compatibility",
 ]
 MIDDLEWARE = [
+    "operations.middleware.TrustedProxyMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "operations.middleware.RequestLogMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
@@ -86,6 +87,14 @@ INGESTION_ALLOW_UNSCANNED = False
 AI_EXTRACTION_ENABLED = os.environ.get("AI_EXTRACTION_ENABLED", "false").lower() == "true"
 AI_EXTRACTION_PROVIDER = os.environ.get("AI_EXTRACTION_PROVIDER", "openai")
 AI_EXTRACTION_MODEL = os.environ.get("AI_EXTRACTION_MODEL", "").strip()
+AI_EXTRACTION_MAX_CONCURRENT = max(
+    1, min(8, int(os.environ.get("AI_EXTRACTION_MAX_CONCURRENT", "2")))
+)
+TRUSTED_PROXY_CIDRS = [
+    value.strip() for value in os.environ.get("TRUSTED_PROXY_CIDRS", "").split(",") if value.strip()
+]
+READINESS_PRIVATE_STORAGE = False
+READINESS_DATABASE_ROLE = False
 INGESTION_SCANNER = os.environ.get("INGESTION_SCANNER", "")
 INGESTION_LIMITS = {
     "upload_bytes": int(os.environ.get("INGESTION_MAX_BYTES", 2 * 1024**2)),

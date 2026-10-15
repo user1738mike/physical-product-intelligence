@@ -1,10 +1,10 @@
 from drf_spectacular.utils import extend_schema
 from rest_framework import serializers
 from rest_framework.response import Response
-from rest_framework.throttling import ScopedRateThrottle
 
 from accounts.serializers import StrictSerializer
 from accounts.views import PrivateResponseView
+from operations.throttling import SharedRateThrottle
 from organizations.services import authorize
 from products.services import validated
 
@@ -47,7 +47,7 @@ class CapabilitiesView(PrivateResponseView):
 
 
 class ExtractionStartView(PrivateResponseView):
-    throttle_classes = [ScopedRateThrottle]
+    throttle_classes = [SharedRateThrottle]
     throttle_scope = "extractions"
 
     @extend_schema(request=ExtractionStart, responses={201: JobSerializer})
@@ -59,7 +59,7 @@ class ExtractionStartView(PrivateResponseView):
 
 
 class AIProcessView(PrivateResponseView):
-    throttle_classes = [ScopedRateThrottle]
+    throttle_classes = [SharedRateThrottle]
     throttle_scope = "extractions"
 
     @extend_schema(request=VersionInput, responses=JobSerializer)

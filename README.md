@@ -14,10 +14,13 @@ python scripts/setup_env.py
 if ($LASTEXITCODE -ne 0) { throw 'Environment setup failed' }
 docker compose config --quiet
 if ($LASTEXITCODE -ne 0) { throw 'Compose configuration failed; check required variables in .env' }
-docker compose up --build --wait --wait-timeout 240
-if ($LASTEXITCODE -ne 0) { throw 'Compose startup failed; inspect Docker and service logs' }
+docker compose up --build -d db backend
+if ($LASTEXITCODE -ne 0) { throw 'Database/backend startup failed; inspect Docker and service logs' }
 docker compose exec -T backend python manage.py migrate --noinput
+if ($LASTEXITCODE -ne 0) { throw 'Migrations failed; do not start frontend' }
 docker compose exec -T backend python manage.py migrate --check
+docker compose up --build --wait --wait-timeout 240
+if ($LASTEXITCODE -ne 0) { throw 'Compose readiness failed; inspect Docker and service logs' }
 python scripts/smoke.py
 ```
 
@@ -29,7 +32,7 @@ Compose consumes `POSTGRES_DB`, `POSTGRES_USER`, and `POSTGRES_PASSWORD` in both
 
 Verify the setup logic with `python -m unittest discover -s scripts -p test_setup_env.py`.
 
-Open http://localhost:3000. Backend liveness is http://localhost:8000/api/v1/health/live/, database readiness is http://localhost:8000/api/v1/health/ready/, OpenAPI is http://localhost:8000/api/v1/schema/, frontend health is http://localhost:3000/health. Readiness does not check migrations; the explicit migration check above does. Use `docker compose logs -f backend frontend` to inspect logs. Backend source is mounted with reload; frontend source is baked into its development image: after edits run `docker compose up -d --build frontend`. This avoids host/container node_modules conflicts.
+Open http://localhost:3000. Backend liveness is http://localhost:8000/api/v1/health/live/, readiness is http://localhost:8000/api/v1/health/ready/, OpenAPI is http://localhost:8000/api/v1/schema/, frontend health is http://localhost:3000/health. Readiness includes database connectivity and pending migrations, plus production dependency policy when production settings are selected. Use `docker compose logs -f backend frontend` to inspect logs. Backend source is mounted with reload; frontend source is baked into its development image: after edits run `docker compose up -d --build frontend`. This avoids host/container node_modules conflicts.
 
 ```powershell
 docker compose exec -T backend ruff format --check .
@@ -123,7 +126,7 @@ API contract is available at `/api/v1/schema/`:
 | `/api/v1/organizations/{id}/state/` | POST `{is_active}` owner-only |
 | `/api/v1/organizations/{id}/audit/` | GET paginated read-only history |
 
-Collections have 25-item pages with `count`, `next`, `previous`, `results`. Inaccessible tenants/nested objects return 404; role/session denials return 403; duplicate organization slugs return 409. Unknown or ownership/organization fields are rejected. All unsafe requests need the token from `auth/csrf/` in `X-CSRFToken`, plus the cookies. Auth errors are generic. Login is limited to 10/minute, registration to 5/hour, using best-effort per-process DRF throttles; shared ingress protection is still required in production. Account responses omit password hashes, email and privilege flags.
+Collections have 25-item pages with `count`, `next`, `previous`, `results`. Inaccessible tenants/nested objects return 404; role/session denials return 403; duplicate organization slugs return 409. Unknown or ownership/organization fields are rejected. All unsafe requests need the token from `auth/csrf/` in `X-CSRFToken`, plus the cookies. Auth errors are generic. Login is limited to 10/minute and registration to 5/hour per trusted peer using shared PostgreSQL counters; ingress abuse protection is also required. Account responses omit password hashes, email and privilege flags.
 
 For trusted operator administration, run `docker compose exec backend python manage.py createsuperuser` interactively and visit http://localhost:8000/admin/. Tenant/audit admin pages are read-only; use the authorized APIs to mutate tenant state. Never grant staff privileges through public registration. Restrict `/admin/` at production ingress and collect/serve its static assets separately.
 
@@ -158,3 +161,7 @@ From an organization workspace, open Equipment to record specifications, create 
 ## AI-assisted evidence extraction
 
 Phase 6 extends existing imports with optional source-grounded AI candidates, explicit review/correction and atomic application. Open an original upload to check availability, select an existing product/package and queue a job. Processing requires a separate action that sends bounded source text to the configured provider. AI is disabled by default, credentials remain backend-only, and deterministic parsing/manual review remain available. Optional SDK setup, privacy controls, limits and API examples are in the [AI guide](docs/ai-extraction-api.md), [ADR 0011](docs/architecture-decisions/0011-source-grounded-ai-candidates.md) and [completion report](docs/phase6-completion-report.md). Automated tests and CI use mocked responses; a live integration check requires separate authorization.
+
+## Phase 7 operational hardening
+
+Shared PostgreSQL admission limits, a global extraction cap, migration/role-aware readiness, private scanner hook, protected backup/isolated restore commands and production server/image recipes are implemented. Use the [operations guide](docs/deployment-and-operations.md) for safe startup order, project-only Docker subnet recovery, TLS/role/storage requirements, recovery and release gates. Local production-server verification uses `compose.runtime-check.yaml`; production configuration uses the separate `compose.production.yaml` recipe. See [ADR 0012](docs/architecture-decisions/0012-small-deployment-operational-controls.md) and the [Phase 7 verification report](docs/phase7-completion-report.md). Live OpenAI calls require separate explicit approval; ordinary checks use mocks and an 18-case synthetic validation evaluation.

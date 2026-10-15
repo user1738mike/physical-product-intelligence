@@ -2,10 +2,10 @@ from django.db.models import Q
 from drf_spectacular.utils import extend_schema
 from rest_framework import serializers
 from rest_framework.response import Response
-from rest_framework.throttling import ScopedRateThrottle
 
 from accounts.serializers import StrictSerializer
 from accounts.views import PrivateResponseView
+from operations.throttling import SharedRateThrottle
 from organizations.services import authorize
 from organizations.views import page
 from products.services import validated
@@ -136,7 +136,7 @@ class ActivateView(PrivateResponseView):
 
 
 class AssessmentsView(PrivateResponseView):
-    throttle_classes = [ScopedRateThrottle]
+    throttle_classes = [SharedRateThrottle]
     throttle_scope = "assessments"
 
     @extend_schema(

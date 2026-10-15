@@ -1,8 +1,10 @@
 import json
+from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from django.test import TestCase, override_settings
+from rest_framework.settings import api_settings
 from rest_framework.test import APIClient
 
 from audit.models import AuditEvent
@@ -118,6 +120,7 @@ class AuthenticationTests(TestCase):
         self.user.save()
         self.assertEqual(self.client.get("/api/v1/auth/me/").status_code, 403)
 
+    @patch.dict(api_settings.DEFAULT_THROTTLE_RATES, {"register": "100/hour"})
     def test_registration_never_trusts_privileges_and_validates_password(self):
         base = {"username": "newperson", "password": PASSWORD}
         for field in ("is_staff", "is_superuser", "is_active", "role", "id"):
@@ -128,7 +131,6 @@ class AuthenticationTests(TestCase):
                 HTTP_X_CSRFTOKEN=self.csrf(),
             )
             self.assertEqual(response.status_code, 400)
-        cache.clear()
         response = self.client.post(
             "/api/v1/auth/register/",
             {**base, "password": "123"},
@@ -157,6 +159,18 @@ class AuthenticationTests(TestCase):
         for _ in range(10):
             self.assertEqual(self.login(username="missing", password="wrong").status_code, 400)
         self.assertEqual(self.login(username="missing", password="wrong").status_code, 429)
+
+    def test_registration_limit_counts_invalid_variations_and_ignores_untrusted_forwarding(self):
+        for index in range(6):
+            response = self.client.post(
+                "/api/v1/auth/register/",
+                {"username": f"invalid-{index}", "password": "123"},
+                format="json",
+                HTTP_X_CSRFTOKEN=self.csrf(),
+                HTTP_X_FORWARDED_FOR=f"192.0.2.{index + 1}",
+            )
+            self.assertEqual(response.status_code, 400 if index < 5 else 429)
+        self.assertIn("Retry-After", response)
 
     def test_hostile_csrf_origin_and_missing_tenant_csrf_rejected(self):
         token = self.csrf()

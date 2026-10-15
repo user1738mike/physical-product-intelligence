@@ -181,16 +181,15 @@ def compatibility_workflows(owner, member, organization_id, foreign_id):
         data={"overall": "compatible"},
         expected=405,
     )
-    member.request(
-        f"/api/v1/organizations/{foreign_id}/equipment/{equipment['id']}/", expected=404
-    )
+    member.request(f"/api/v1/organizations/{foreign_id}/equipment/{equipment['id']}/", expected=404)
     assert (
         owner.request(
-            root
-            + f"assessments/?product_id={product['id']}&equipment_id={equipment['id']}"
+            root + f"assessments/?product_id={product['id']}&equipment_id={equipment['id']}"
         )["count"]
         >= 4
     )
     print(
-        "PASS compatibility proxy: draft/activation, missing/compatible/conflicting/incompatible outcomes, evidence policy, immutable snapshots, idempotency, comparison, CSRF and tenant/role denial"
+        "PASS compatibility proxy: draft/activation, missing/compatible/conflicting/incompatible "
+        "outcomes, evidence policy, immutable snapshots, idempotency, comparison, "
+        "CSRF and tenant/role denial"
     )

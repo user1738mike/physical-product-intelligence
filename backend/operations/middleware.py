@@ -1,10 +1,32 @@
+import ipaddress
 import logging
 import re
 import time
 import uuid
 
+from django.conf import settings
+
 logger = logging.getLogger("operations.requests")
 VALID_ID = re.compile(r"[A-Za-z0-9_-]{1,64}\Z")
+
+
+class TrustedProxyMiddleware:
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        try:
+            peer = ipaddress.ip_address(request.META.get("REMOTE_ADDR", ""))
+            trusted = any(
+                peer in ipaddress.ip_network(cidr) for cidr in settings.TRUSTED_PROXY_CIDRS
+            )
+        except ValueError:
+            trusted = False
+        if not trusted:
+            request.META.pop("HTTP_X_FORWARDED_PROTO", None)
+            request.META.pop("HTTP_X_REAL_IP", None)
+        request.get_host()  # Validate Host for every route, including public health checks.
+        return self.get_response(request)
 
 
 class RequestLogMiddleware:
@@ -24,7 +46,8 @@ class RequestLogMiddleware:
             extra={
                 "request_id": request.request_id,
                 "method": request.method,
-                "path": request.path,
+                "path": getattr(getattr(request, "resolver_match", None), "route", None)
+                or "unmatched",
                 "status": response.status_code,
                 "duration_ms": round((time.perf_counter() - started) * 1000, 2),
             },

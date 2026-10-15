@@ -5,7 +5,8 @@ COPY requirements.lock requirements-ai.lock .
 ARG INSTALL_AI=false
 RUN pip install --no-cache-dir -r requirements.lock && useradd --create-home --uid 10001 app
 RUN if [ "$INSTALL_AI" = "true" ]; then pip install --no-cache-dir -r requirements-ai.lock; fi
+RUN mkdir -p /var/lib/ppi/private && chown app:app /var/lib/ppi/private
 COPY --chown=app:app . .
 USER app
 EXPOSE 8000
-CMD ["gunicorn", "config.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "2"]
+CMD ["gunicorn", "config.wsgi:application", "--config", "gunicorn.conf.py"]

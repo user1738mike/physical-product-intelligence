@@ -1,12 +1,15 @@
 """Probe running applications without third-party dependencies."""
 
 import json
+import os
 import re
 from urllib.request import urlopen
 
+backend = os.environ.get("PPI_SMOKE_BACKEND", "http://127.0.0.1:8000")
+
 for url, service in [
-    ("http://127.0.0.1:8000/api/v1/health/live/", "backend"),
-    ("http://127.0.0.1:8000/api/v1/health/ready/", "backend"),
+    (backend + "/api/v1/health/live/", "backend"),
+    (backend + "/api/v1/health/ready/", "backend"),
     ("http://127.0.0.1:3000/health", "frontend"),
 ]:
     with urlopen(url, timeout=10) as response:
@@ -20,8 +23,7 @@ with urlopen("http://127.0.0.1:3000/", timeout=10) as response:
     assert "Physical Product Intelligence Cloud" in html
     assert "Product records and packaging APIs are available." in html
     assert (
-        "Documented-constraint assessments are available; physical safety is not certified."
-        in html
+        "Documented-constraint assessments are available; physical safety is not certified." in html
     )
     stylesheets = re.findall(r'href="(/_next/static/[^"?]+\.css)', html)
     assert stylesheets, "Landing page stylesheet missing"

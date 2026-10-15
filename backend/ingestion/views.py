@@ -6,9 +6,9 @@ from drf_spectacular.utils import extend_schema
 from rest_framework import serializers
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.response import Response
-from rest_framework.throttling import ScopedRateThrottle
 
 from accounts.views import PrivateResponseView
+from operations.throttling import SharedRateThrottle
 from organizations.services import authorize
 from organizations.views import page
 from products.services import validated
@@ -59,7 +59,7 @@ class LimitsView(PrivateResponseView):
 
 class JobsView(PrivateResponseView):
     parser_classes = [MultiPartParser, FormParser]
-    throttle_classes = [ScopedRateThrottle]
+    throttle_classes = [SharedRateThrottle]
     throttle_scope = "imports"
 
     @extend_schema(operation_id="import_jobs_list", responses=JobPage, parameters=[ListQuery])
@@ -89,7 +89,7 @@ class JobView(PrivateResponseView):
 class ActionView(PrivateResponseView):
     action = ""
     input_class = VersionInput
-    throttle_classes = [ScopedRateThrottle]
+    throttle_classes = [SharedRateThrottle]
     throttle_scope = "imports"
 
     @extend_schema(request=VersionInput, responses=JobSerializer)

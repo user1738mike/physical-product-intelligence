@@ -1,7 +1,8 @@
-name: Foundation checks
+name: Application checks
 on:
   push:
   pull_request:
+  workflow_dispatch:
 permissions:
   contents: read
 jobs:
@@ -38,13 +39,18 @@ jobs:
           cache-dependency-path: backend/requirements.lock
       - run: pip install -r requirements.lock
       - run: pip install -r requirements-ai.lock
-      - run: ruff format --check . ../scripts
-      - run: ruff check . ../scripts
+      - run: pip check
+      - run: ruff format --config pyproject.toml --check . ../scripts
+      - run: ruff check --config pyproject.toml . ../scripts
       - run: python manage.py check
+      - run: python ../scripts/check_production_config.py
       - run: python manage.py makemigrations --check --dry-run
       - run: python manage.py migrate --noinput
       - run: python manage.py migrate --check
       - run: python manage.py test accounts organizations operations products ingestion compatibility
+      - run: python manage.py evaluate_extraction
+      - run: python manage.py check_ai_provider
+      - run: python -m unittest discover -s ../scripts -p 'test_*.py'
       - run: python manage.py spectacular --validate --fail-on-warn --file /tmp/openapi.yaml
   frontend:
     runs-on: ubuntu-latest
@@ -68,22 +74,41 @@ jobs:
           NEXT_TELEMETRY_DISABLED: "1"
   compose-smoke:
     runs-on: ubuntu-latest
+    env:
+      AI_EXTRACTION_ENABLED: "false"
+      COMPOSE_FILE: compose.yaml:compose.runtime-check.yaml
     steps:
       - uses: actions/checkout@v4
-      - run: python -m unittest discover -s scripts -p test_setup_env.py
+      - run: python -m unittest discover -s scripts -p 'test_*.py'
       - run: python scripts/setup_env.py
       - run: docker compose config --quiet
-      - run: docker compose up --build --wait --wait-timeout 240
+      - name: Match non-root bind-mount permissions to runner
+        run: |
+          echo "PPI_CONTAINER_UID=$(id -u)" >> "$GITHUB_ENV"
+          echo "PPI_CONTAINER_GID=$(id -g)" >> "$GITHUB_ENV"
+      - run: docker compose up --build -d db backend
       - run: docker compose exec -T backend python manage.py migrate --noinput
       - run: docker compose exec -T backend python manage.py migrate --check
+      - run: docker compose up --build --wait --wait-timeout 240
       - run: docker compose exec -T backend python manage.py test accounts organizations operations products ingestion compatibility --settings=config.settings.test
       - run: python scripts/phase2_smoke.py --allow-create-test-data
       - run: python scripts/phase3_smoke.py --allow-create-test-data
       - run: python scripts/smoke.py
       - run: docker build --target production -t ppi-frontend-check ./frontend
+      - run: docker run --rm --network none --entrypoint node ppi-frontend-check -e "const fs=require('fs'); if(process.getuid()===0 || fs.existsSync('/app/.env') || fs.existsSync('/app/media')) process.exit(1)"
       - name: Container logs on failure
         if: failure()
         run: docker compose logs --no-color
       - name: Shutdown
         if: always()
         run: docker compose down
+  backend-images:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        ai: ["false", "true"]
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build --build-arg INSTALL_AI=${{ matrix.ai }} -t ppi-backend-check ./backend
+      - run: docker run --rm --network none --entrypoint python ppi-backend-check -m pip check
+      - run: docker run --rm --network none --entrypoint python ppi-backend-check -c "import os,pathlib; assert os.getuid()!=0; assert not list(pathlib.Path('/app').rglob('.env*')); assert not pathlib.Path('/app/media').exists()"
