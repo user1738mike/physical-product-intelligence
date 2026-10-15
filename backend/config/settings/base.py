@@ -20,6 +20,7 @@ INSTALLED_APPS = [
     "audit",
     "products",
     "ingestion",
+    "compatibility",
 ]
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
@@ -82,6 +83,9 @@ STORAGES = {
     },
 }
 INGESTION_ALLOW_UNSCANNED = False
+AI_EXTRACTION_ENABLED = os.environ.get("AI_EXTRACTION_ENABLED", "false").lower() == "true"
+AI_EXTRACTION_PROVIDER = os.environ.get("AI_EXTRACTION_PROVIDER", "openai")
+AI_EXTRACTION_MODEL = os.environ.get("AI_EXTRACTION_MODEL", "").strip()
 INGESTION_SCANNER = os.environ.get("INGESTION_SCANNER", "")
 INGESTION_LIMITS = {
     "upload_bytes": int(os.environ.get("INGESTION_MAX_BYTES", 2 * 1024**2)),
@@ -114,10 +118,29 @@ REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": ["rest_framework.authentication.SessionAuthentication"],
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "DEFAULT_RENDERER_CLASSES": ["rest_framework.renderers.JSONRenderer"],
-    "DEFAULT_THROTTLE_RATES": {"login": "10/min", "register": "5/hour", "imports": "120/hour"},
+    "DEFAULT_THROTTLE_RATES": {
+        "login": "10/min",
+        "register": "5/hour",
+        "imports": "120/hour",
+        "assessments": "60/hour",
+        "extractions": "20/hour",
+    },
 }
 SPECTACULAR_SETTINGS = {
     "ENUM_NAME_OVERRIDES": {
+        "NumericRuleAttribute": ["length", "width", "height", "mass"],
+        "EvidenceAttribute": [
+            "length",
+            "width",
+            "height",
+            "mass",
+            "name",
+            "brand",
+            "manufacturer",
+            "category",
+            "material",
+        ],
+        "DeclaredHandlingLevel": ["unit", "inner", "case", "pallet"],
         "PackagingLevel": [
             ("unit", "Unit"),
             ("inner", "Inner pack"),

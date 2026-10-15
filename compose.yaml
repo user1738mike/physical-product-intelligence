@@ -15,7 +15,10 @@ services:
       retries: 20
     restart: unless-stopped
   backend:
-    build: ./backend
+    build:
+      context: ./backend
+      args:
+        INSTALL_AI: ${INSTALL_AI_SDK:-false}
     environment:
       DJANGO_SETTINGS_MODULE: config.settings.development
       DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?Set DJANGO_SECRET_KEY in .env}
@@ -25,6 +28,10 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
       POSTGRES_HOST: db
       POSTGRES_PORT: "5432"
+      AI_EXTRACTION_ENABLED: ${AI_EXTRACTION_ENABLED:-false}
+      AI_EXTRACTION_PROVIDER: ${AI_EXTRACTION_PROVIDER:-openai}
+      AI_EXTRACTION_MODEL: ${AI_EXTRACTION_MODEL:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
     command: ["python", "manage.py", "runserver", "0.0.0.0:8000"]
     ports: ["127.0.0.1:8000:8000"]
     volumes: ["./backend:/app"]

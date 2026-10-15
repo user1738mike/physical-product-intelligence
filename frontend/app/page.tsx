@@ -81,7 +81,8 @@ export default function Home() {
         <span>Physical Product Intelligence Cloud</span>
         <p>
           Product records and packaging APIs are available. Evidence imports
-          require review. Assessments are not yet available.{" "}
+          require review. Documented-constraint assessments are available;
+          physical safety is not certified.{" "}
           <Link href="/products">Open product catalog</Link>
         </p>
       </footer>

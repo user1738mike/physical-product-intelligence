@@ -809,3 +809,29 @@ button:disabled {
 .catalog-panel select {
   max-width: 100%;
 }
+
+.masthead nav {
+  flex-wrap: wrap;
+}
+.rule-editor {
+  margin: 24px 0;
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.snapshot-json {
+  max-height: 32rem;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 0.85rem;
+}
+.check-field {
+  display: inline-flex;
+  gap: 8px;
+  margin: 8px 20px 8px 0;
+}
+button[aria-pressed="true"] {
+  outline: 2px solid var(--green);
+  outline-offset: 2px;
+}

@@ -20,6 +20,7 @@ jobs:
           --health-interval 5s --health-timeout 3s --health-retries 20
     env:
       DJANGO_SETTINGS_MODULE: config.settings.test
+      AI_EXTRACTION_ENABLED: "false"
       POSTGRES_DB: ppi
       POSTGRES_USER: ppi
       POSTGRES_PASSWORD: ci-disposable-password
@@ -36,13 +37,14 @@ jobs:
           cache: pip
           cache-dependency-path: backend/requirements.lock
       - run: pip install -r requirements.lock
+      - run: pip install -r requirements-ai.lock
       - run: ruff format --check . ../scripts
       - run: ruff check . ../scripts
       - run: python manage.py check
       - run: python manage.py makemigrations --check --dry-run
       - run: python manage.py migrate --noinput
       - run: python manage.py migrate --check
-      - run: python manage.py test accounts organizations operations products ingestion
+      - run: python manage.py test accounts organizations operations products ingestion compatibility
       - run: python manage.py spectacular --validate --fail-on-warn --file /tmp/openapi.yaml
   frontend:
     runs-on: ubuntu-latest
@@ -74,7 +76,7 @@ jobs:
       - run: docker compose up --build --wait --wait-timeout 240
       - run: docker compose exec -T backend python manage.py migrate --noinput
       - run: docker compose exec -T backend python manage.py migrate --check
-      - run: docker compose exec -T backend python manage.py test accounts organizations operations products ingestion --settings=config.settings.test
+      - run: docker compose exec -T backend python manage.py test accounts organizations operations products ingestion compatibility --settings=config.settings.test
       - run: python scripts/phase2_smoke.py --allow-create-test-data
       - run: python scripts/phase3_smoke.py --allow-create-test-data
       - run: python scripts/smoke.py

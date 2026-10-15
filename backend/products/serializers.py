@@ -173,6 +173,7 @@ class ArtifactSerializer(serializers.Serializer):
     sha256 = serializers.CharField()
     location = serializers.CharField()
     download_path = serializers.CharField()
+    extraction = serializers.JSONField(allow_null=True)
 
 
 class EvidenceSerializer(serializers.ModelSerializer):
@@ -188,6 +189,9 @@ class EvidenceSerializer(serializers.ModelSerializer):
             "job_id": str(row.job_id),
             "sha256": row.job.sha256,
             "location": row.location,
+            "extraction": row.candidates.first().extraction
+            if row.job.mode == "ai" and row.candidates.exists()
+            else None,
             "download_path": (
                 f"/api/v1/organizations/{row.job.organization_id}/imports/{row.job_id}/file/"
             ),

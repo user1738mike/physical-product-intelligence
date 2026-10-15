@@ -3,7 +3,7 @@
 Multi-tenant SaaS platform that builds evidence-backed digital profiles of physical products and evaluates their compatibility with handling, inspection, packaging, and automation workflows.
 # Physical Product Intelligence Cloud
 
-A foundation for a multi-tenant product and packaging assessment platform, initially intended for warehouse robotics integrators. Phase 1 provides operational endpoints and a public identification page; Phase 2 adds session authentication, organizations, memberships, tenant authorization and audit history. Phase 3 adds structured product records, immutable packaging revisions, measurements and evidence provenance through tenant-scoped APIs. Phase 4 adds private CSV/XLSX uploads, bounded labeled PDF/TXT extraction, review candidates and transactional catalog application. Assessments remain unavailable. Architecture and requirements are in [docs](docs/product-requirements.md).
+A foundation for a multi-tenant product and packaging assessment platform, initially intended for warehouse robotics integrators. Phase 1 provides operational endpoints and a public identification page; Phase 2 adds session authentication, organizations, memberships, tenant authorization and audit history. Phase 3 adds structured product records, immutable packaging revisions, measurements and evidence provenance through tenant-scoped APIs. Phase 4 adds private CSV/XLSX uploads, bounded labeled PDF/TXT extraction, review candidates and transactional catalog application. Phase 5 adds equipment specifications, immutable rule versions and explainable recorded-input compatibility assessments. Architecture and requirements are in [docs](docs/product-requirements.md).
 
 ## Local development (PowerShell, repository root)
 
@@ -36,7 +36,7 @@ docker compose exec -T backend ruff format --check .
 docker compose exec -T backend ruff check .
 docker compose exec -T backend python manage.py check
 docker compose exec -T backend python manage.py makemigrations --check --dry-run
-docker compose exec -T backend python manage.py test accounts organizations operations products --settings=config.settings.test
+docker compose exec -T backend python manage.py test accounts organizations operations products ingestion compatibility --settings=config.settings.test
 docker compose exec -T backend python manage.py spectacular --validate --fail-on-warn --file /tmp/openapi.yaml
 docker compose exec -T frontend npm run format:check
 docker compose exec -T frontend npm run lint
@@ -59,7 +59,7 @@ python -m venv .venv
 $env:DJANGO_SETTINGS_MODULE = 'config.settings.test'
 $env:TEST_SQLITE = '1'
 .\.venv\Scripts\python.exe backend\manage.py check
-.\.venv\Scripts\python.exe backend\manage.py test accounts organizations operations products
+.\.venv\Scripts\python.exe backend\manage.py test accounts organizations operations products ingestion compatibility
 .\.venv\Scripts\python.exe backend\manage.py spectacular --validate --fail-on-warn --file artifacts\openapi.yaml
 Remove-Item Env:TEST_SQLITE
 Remove-Item Env:DJANGO_SETTINGS_MODULE
@@ -150,3 +150,11 @@ Historical Phase 1 execution results remain in `docs/implementation-report.md`.
 ## Evidence imports
 
 Choose an organization in the product workspace, then open Imports. Upload, validate, confirm mappings, review candidates and approve creation before applying. Only owners/admins approve or apply; imported measurements remain reported evidence. See [ingestion API and setup](docs/ingestion-api.md), [ADR 0009](docs/architecture-decisions/0009-bounded-reviewable-ingestion.md) and the [Phase 4 completion report](docs/phase4-completion-report.md). Production uploads require a malware scanner and private storage configuration.
+
+## Equipment and compatibility assessments
+
+From an organization workspace, open Equipment to record specifications, create immutable rule versions and activate reviewed constraints. All members can use Assessments to select a product/package, equipment, explicit orientation and eligible rule version, then inspect evidence sufficiency, per-rule results and immutable history. Missing critical values remain indeterminate; estimates never become verified facts. These results do not certify physical safety or successful handling. See the [API and lifecycle guide](docs/compatibility-api.md), [ADR 0010](docs/architecture-decisions/0010-versioned-equipment-and-deterministic-assessments.md) and [Phase 5 report](docs/phase5-completion-report.md). The full backend command includes `accounts organizations operations products ingestion compatibility`; the existing disposable Phase 3 smoke now also covers Phase 4 and Phase 5.
+
+## AI-assisted evidence extraction
+
+Phase 6 extends existing imports with optional source-grounded AI candidates, explicit review/correction and atomic application. Open an original upload to check availability, select an existing product/package and queue a job. Processing requires a separate action that sends bounded source text to the configured provider. AI is disabled by default, credentials remain backend-only, and deterministic parsing/manual review remain available. Optional SDK setup, privacy controls, limits and API examples are in the [AI guide](docs/ai-extraction-api.md), [ADR 0011](docs/architecture-decisions/0011-source-grounded-ai-candidates.md) and [completion report](docs/phase6-completion-report.md). Automated tests and CI use mocked responses; a live integration check requires separate authorization.

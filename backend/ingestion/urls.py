@@ -1,10 +1,14 @@
 from django.urls import path
 
-from . import views
+from . import ai_views, views
 
 urlpatterns = [
     path("", views.JobsView.as_view()),
     path("limits/", views.LimitsView.as_view()),
+    path("ai-capabilities/", ai_views.CapabilitiesView.as_view()),
+    path("<uuid:job_id>/extractions/", ai_views.ExtractionStartView.as_view()),
+    path("<uuid:job_id>/ai-process/", ai_views.AIProcessView.as_view()),
+    path("<uuid:job_id>/candidates/<uuid:candidate_id>/", ai_views.CandidateDetailView.as_view()),
     path("<uuid:job_id>/", views.JobView.as_view()),
     path("<uuid:job_id>/validate/", views.ValidateView.as_view()),
     path("<uuid:job_id>/mapping/", views.MappingView.as_view()),

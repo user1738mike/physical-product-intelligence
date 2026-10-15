@@ -38,10 +38,27 @@ class ImportJob(models.Model):
     counters = models.JSONField(default=dict)
     errors = models.JSONField(default=list)
 
+    mode = models.CharField(max_length=16, default="deterministic")
+    source_job = models.ForeignKey(
+        "self", null=True, on_delete=models.PROTECT, related_name="extractions"
+    )
+    request_id = models.UUIDField(null=True)
+    extraction = models.JSONField(default=dict)
+
     class Meta:
         ordering = ["-created_at", "-id"]
         indexes = [models.Index(fields=["organization", "status"], name="import_org_status")]
         constraints = [
+            models.UniqueConstraint(
+                fields=["organization", "request_id"], name="extraction_org_request"
+            ),
+            models.CheckConstraint(
+                condition=models.Q(
+                    mode="deterministic", source_job__isnull=True, request_id__isnull=True
+                )
+                | models.Q(mode="ai", source_job__isnull=False, request_id__isnull=False),
+                name="import_extraction_mode",
+            ),
             models.CheckConstraint(
                 condition=models.Q(
                     status__in=[
@@ -56,7 +73,7 @@ class ImportJob(models.Model):
                     ]
                 ),
                 name="import_valid_status",
-            )
+            ),
         ]
 
 
@@ -100,6 +117,7 @@ class Candidate(models.Model):
     reviewed_at = models.DateTimeField(null=True)
     version = models.PositiveIntegerField(default=1)
     claim = models.ForeignKey("products.AttributeClaim", null=True, on_delete=models.PROTECT)
+    extraction = models.JSONField(default=dict)
 
     class Meta:
         ordering = ["row__number", "field", "id"]

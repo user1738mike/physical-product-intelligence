@@ -55,6 +55,11 @@ def require_state(job, states):
         raise catalog.Conflict("This action is not allowed in the current import state.")
 
 
+def deterministic(job):
+    if job.mode != "deterministic":
+        raise ValidationError("Use the AI extraction processing action for this job.")
+
+
 def save_job(job):
     job.version += 1
     job.save()
@@ -73,7 +78,9 @@ def upload(actor, organization_id, file):
                     "At most 20 unfinished imports are permitted per organization."
                 )
             used = (
-                ImportJob.objects.filter(organization=org).aggregate(total=Sum("size"))["total"]
+                ImportJob.objects.filter(organization=org, mode="deterministic").aggregate(
+                    total=Sum("size")
+                )["total"]
                 or 0
             )
             if used + file.size > settings.INGESTION_LIMITS["storage_bytes"]:
@@ -91,6 +98,7 @@ def upload(actor, organization_id, file):
 @transaction.atomic
 def validate(actor, org, job_id, values):
     job = job_in(actor, org, job_id, lock=True)
+    deterministic(job)
     version(job, values.pop("expected_version"))
     require_state(job, {"uploaded", "failed"})
     job.status = "validating"
@@ -135,6 +143,7 @@ def validate(actor, org, job_id, values):
 @transaction.atomic
 def map_fields(actor, org, job_id, values):
     job = job_in(actor, org, job_id, lock=True)
+    deterministic(job)
     version(job, values["expected_version"])
     require_state(job, {"uploaded"})
     headers = job.preview.get("headers", [])
@@ -258,6 +267,7 @@ def error_messages(error):
 @transaction.atomic
 def process(actor, org, job_id, values):
     job = job_in(actor, org, job_id, lock=True)
+    deterministic(job)
     if job.status == "awaiting_review":
         return job
     version(job, values["expected_version"])
@@ -398,6 +408,15 @@ def review(actor, org, job_id, candidate_id, values):
     job = job_in(actor, org, job_id, lock=True, reviewer=True)
     require_state(job, {"awaiting_review"})
     candidate = candidate_in(job, candidate_id)
+    if job.mode == "ai":
+        from .ai_services import source_valid
+
+        source_valid(job)
+        if values["decision"] == "approve" and not candidate.extraction.get("grounded"):
+            raise ValidationError(
+                "Ungrounded or unknown AI candidates cannot be approved; inspect "
+                "the source manually."
+            )
     expected = values.pop("expected_version")
     # A repeated identical request succeeds even with its pre-review version.
     normalized = candidate.normalized
@@ -461,6 +480,13 @@ def review(actor, org, job_id, candidate_id, values):
     annotate_competitors(job)
     candidate.refresh_from_db()
     save_job(job)
+    if job.mode == "ai":
+        job.counters.update(
+            approved=Candidate.objects.filter(row__job=job, decision="approve").count(),
+            rejected=Candidate.objects.filter(row__job=job, decision="reject").count(),
+            awaiting_review=Candidate.objects.filter(row__job=job, decision="pending").count(),
+        )
+        job.save(update_fields=["counters"])
     return candidate
 
 
@@ -499,7 +525,13 @@ def refresh(actor, org, job_id, values):
         row.product = Product.objects.filter(organization=job.organization, sku=row.sku).first()
         package_name = row.raw.get(job.mapping.get("package_name"), "").strip()
         row.packaging = (
-            row.product.configurations.filter(name=package_name).first() if row.product else None
+            row.packaging
+            if job.mode == "ai"
+            else (
+                row.product.configurations.filter(name=package_name).first()
+                if row.product
+                else None
+            )
         )
         row.expected_revision = row.product.revisions.first().number if row.product else None
         row.expected_packaging_version = row.packaging.version if row.packaging else None
@@ -550,6 +582,21 @@ def apply(actor, org, job_id, values):
         return job
     version(job, values["expected_version"])
     require_state(job, {"awaiting_review"})
+    if job.mode == "ai":
+        from .ai_services import source_valid
+
+        source_valid(job)
+        for candidate in Candidate.objects.filter(row__job=job, decision="approve"):
+            if not candidate.extraction.get("grounded"):
+                raise ValidationError("Ungrounded AI values cannot be applied.")
+            checked = normalize(
+                candidate.field,
+                str(candidate.normalized.get("value", "")),
+                candidate.normalized.get("unit", ""),
+                job.created_at,
+            )
+            if checked != candidate.normalized:
+                raise ValidationError("Candidate normalization changed; review again.")
     if Candidate.objects.filter(row__job=job, decision="pending").exists():
         raise ValidationError("Approve or reject every candidate before applying the job.")
     stale_targets(job)
@@ -778,6 +825,8 @@ def apply(actor, org, job_id, values):
         else "completed"
     )
     job.completed_at = timezone.now()
+    if job.mode == "ai":
+        job.extraction["stage"] = job.status
     save_job(job)
     event(job, actor, "applied")
     return job
@@ -789,8 +838,15 @@ def cancel(actor, org, job_id, values):
     if job.status == "cancelled":
         return job
     version(job, values["expected_version"])
-    require_state(job, {"uploaded", "failed", "awaiting_review"})
+    require_state(
+        job,
+        {"uploaded", "failed", "awaiting_review", "processing"}
+        if job.mode == "ai"
+        else {"uploaded", "failed", "awaiting_review"},
+    )
     job.status, job.completed_at = "cancelled", timezone.now()
+    if job.mode == "ai":
+        job.extraction.update(stage="cancelled", retryable=False)
     save_job(job)
     event(job, actor, "cancelled")
     return job

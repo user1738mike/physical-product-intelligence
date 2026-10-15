@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { AIExtraction, AICandidateProvenance } from "./ai";
 import { useEffect, useState } from "react";
 import { type Page } from "../../lib/api";
 import {
@@ -157,6 +158,7 @@ function Detail({ org, id }: { org: string; id: string }) {
     <>
       <Link href={importsPath(org)}>All imports</Link>
       <h1>{job.display_name}</h1>
+      <AIExtraction org={org} job={job} reviewer={reviewer} reload={reload} />
       <section className="catalog-panel">
         <h2>Import status: {job.status.replaceAll("_", " ")}</h2>
         <p>
@@ -207,7 +209,7 @@ function Detail({ org, id }: { org: string; id: string }) {
           </MutationForm>
         )}
       </section>
-      {["uploaded", "failed"].includes(job.status) && (
+      {job.mode !== "ai" && ["uploaded", "failed"].includes(job.status) && (
         <section className="catalog-panel">
           <h2>1. Validate and preview</h2>
           <MutationForm
@@ -580,13 +582,29 @@ function Candidates({
           <p>
             {c.location} · {c.quality} · Decision: {c.decision}
           </p>
+          <AICandidateProvenance org={org} candidate={c} />
           <dl>
             <dt>Original source value</dt>
             <dd>
-              {c.raw_value} {c.proposed.unit}
+              {c.raw_value} {c.extraction?.method ? "" : c.proposed.unit}
             </dd>
             <dt>Normalized candidate</dt>
-            <dd>{JSON.stringify(c.normalized)}</dd>
+            <dd>
+              {c.normalized.value === undefined ? (
+                "Unknown / invalid"
+              ) : (
+                <>
+                  {c.normalized.value} {c.normalized.unit ?? ""}
+                  {c.normalized.canonical_value !== undefined && (
+                    <>
+                      {" "}
+                      → {c.normalized.canonical_value}{" "}
+                      {c.normalized.canonical_unit}
+                    </>
+                  )}
+                </>
+              )}
+            </dd>
             <dt>Existing values and basis</dt>
             <dd>
               {c.existing.length
@@ -665,10 +683,19 @@ function Candidates({
                 <select
                   name="decision"
                   defaultValue={
-                    c.decision === "pending" ? "approve" : c.decision
+                    c.decision === "pending"
+                      ? c.extraction?.grounded === false
+                        ? "reject"
+                        : "approve"
+                      : c.decision
                   }
                 >
-                  <option value="approve">Approve</option>
+                  <option
+                    value="approve"
+                    disabled={c.extraction?.grounded === false}
+                  >
+                    Approve
+                  </option>
                   <option value="reject">Reject</option>
                 </select>
               </label>

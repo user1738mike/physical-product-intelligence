@@ -111,6 +111,10 @@ class JobSerializer(serializers.ModelSerializer):
             "counters",
             "errors",
             "duplicate_upload_ids",
+            "mode",
+            "source_job_id",
+            "request_id",
+            "extraction",
         ]
         read_only_fields = fields
 
@@ -140,6 +144,7 @@ class CandidateSerializer(serializers.ModelSerializer):
             "reviewed_at",
             "version",
             "claim_id",
+            "extraction",
         ]
         read_only_fields = fields
 

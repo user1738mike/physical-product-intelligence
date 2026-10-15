@@ -86,6 +86,12 @@ export function TenantFrame({
           <Link href={`/organizations/${encodeURIComponent(org)}/imports`}>
             Imports
           </Link>
+          <Link href={`/organizations/${encodeURIComponent(org)}/equipment`}>
+            Equipment
+          </Link>
+          <Link href={`/organizations/${encodeURIComponent(org)}/assessments`}>
+            Assessments
+          </Link>
           <Link href="/account">Account</Link>
         </nav>
       </header>

@@ -297,6 +297,12 @@ def main():
     from phase4_smoke import ingestion_workflows
 
     ingestion_workflows(first, second, org["id"], other_org["id"])
+    from phase5_smoke import compatibility_workflows
+
+    compatibility_workflows(first, second, org["id"], other_org["id"])
+    from phase6_smoke import intelligence_disabled_workflow
+
+    intelligence_disabled_workflow(first, second, org["id"], other_org["id"])
     first.request(
         f"/api/v1/organizations/{org['id']}/members/{member['id']}/",
         method="DELETE",

@@ -271,7 +271,8 @@ export default function Account() {
           </section>
           <p>
             <Link href="/products">Open your product workspace</Link> to access
-            catalogs and evidence imports. Assessments are not available.
+            catalogs, evidence imports, equipment profiles and recorded-input
+            assessments. Physical safety is not certified.
           </p>
         </>
       )}

@@ -175,6 +175,24 @@ def document_adapter(data, options, limits, format):
     else:
         pages = [text_bytes(data)]
     require(sum(map(len, pages)) <= limits["text_chars"], "Document text limit exceeded.")
+    if options.get("_ai_segments"):
+        segments = []
+        for page_number, page in enumerate(pages, 1):
+            require("\x00" not in page, "Unsupported null character in document.")
+            for offset in range(0, len(page), 2000):
+                part = page[offset : offset + 2000]
+                if part.strip():
+                    segments.append(
+                        {
+                            "location": f"page {page_number}, extracted characters "
+                            f"{offset}–{offset + len(part)}"
+                            if format == "pdf"
+                            else f"text characters {offset}–{offset + len(part)}",
+                            "text": part,
+                        }
+                    )
+        require(segments, "No extractable text; scans and OCR are unsupported.")
+        return {"segments": segments}
     headers = list(dict.fromkeys(DOCUMENT_FIELDS.values())) + ["dimension_unit", "mass_unit"]
     rows = []
     for number, page in enumerate(pages, 1):
@@ -226,6 +244,31 @@ def main():
             result = xlsx_adapter(data, options, limits)
         else:
             result = document_adapter(data, options, limits, format)
+        if options.get("_ai_segments"):
+            if "segments" not in result:
+                require(
+                    not any(row["errors"] for row in result["rows"]),
+                    "Malformed table rows require deterministic review before AI extraction.",
+                )
+                result = {
+                    "segments": [
+                        {
+                            "location": row["location"],
+                            "text": "\n".join(
+                                f"{key}: {value}" for key, value in row["cells"].items()
+                            ),
+                        }
+                        for row in result["rows"]
+                        if not row["errors"]
+                    ]
+                }
+            segments = result["segments"]
+            require(
+                len(segments) <= 80 and sum(len(s["text"]) for s in segments) <= 24000,
+                "AI source exceeds 80 segments or 24000 characters; split the source.",
+            )
+            for index, segment in enumerate(segments, 1):
+                segment["id"] = index
         print(json.dumps({"ok": True, **result}))
     except ParseFailure as error:
         print(json.dumps({"ok": False, "error": str(error)}))

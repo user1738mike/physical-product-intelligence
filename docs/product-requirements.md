@@ -25,3 +25,11 @@ Confirm customer workflow, required packaging hierarchy, constraint semantics, i
 ## Phase 4 ingestion increment
 
 Phase 4 implements bounded CSV/XLSX import, deterministic labeled text PDF/TXT extraction, explicit source mapping, per-attribute review/correction/rejection, new-product approval, provenance/quality/conflict comparisons, private evidence downloads and transactional idempotent application. New values never overwrite canonical data during parsing. Import approval cannot confer physical verification. Acceptance requires upload/tenant/role/parser/idempotency/concurrency tests, PostgreSQL migration preservation, real API/frontend flow checks and explicit remaining production limitations. No compatibility engine, OCR/AI vision, paid model integration or Phase 5 is included.
+
+## Phase 5 compatibility increment
+
+Equipment management, documented specification provenance, immutable rules/activation and deterministic assessments are implemented. Owner/admin manages specifications; all active members assess and inspect history. Explicit packaging level/orientation, qualifying evidence and four hard envelope maxima are required to establish compatible. Reliable hard failure takes precedence; otherwise unresolved required inputs yield indeterminate. Reported, estimated, attested and conflicting evidence remain distinct, and editorial selections cannot conceal conflict. History retains exact snapshots; comparisons never rerun them. This supersedes earlier assessment deferrals. No Phase 6, safety certification or physical handling validation is included. See [guide](compatibility-api.md) and [acceptance report](phase5-completion-report.md).
+
+## Phase 6 AI-assisted intelligence
+
+Existing private documents can produce source-grounded, deterministically normalized candidates for explicit owner/admin review. Candidates preserve originals, source quotes/location, provenance, validation, conflicts and decision history. Approval accepts a reported source assertion, never physical verification; explicit selection and atomic application precede a separately requested deterministic assessment. Core parsing and manual review work while AI is unavailable. No AI compatibility decisions, autonomous tools or Phase 7 scope is included. Acceptance and residual limits are in the [Phase 6 report](phase6-completion-report.md).

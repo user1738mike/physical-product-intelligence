@@ -1,6 +1,6 @@
 # Domain model
 
-Organization, Membership and AuditEvent are implemented in Phase 2; User remains Django's migration-safe global `auth.User`. Phase 3 implements Product, ProductRevision, PackagingProfile, Measurement, Evidence and immutable RevisionEvidence links. Constraints, assessments and integrations below remain planned. Tenant entities use UUIDs and UTC timestamps. Measurements use exact decimals; tenant ownership is derived through the product at every boundary.
+Organization, Membership and AuditEvent are implemented in Phase 2; User remains Django's migration-safe global `auth.User`. Phase 3 implements Product, ProductRevision, PackagingProfile, Measurement, Evidence and immutable RevisionEvidence links. Phase 5 implements equipment constraints and assessments as detailed below; external integrations remain planned. Tenant entities use UUIDs and UTC timestamps. Measurements use exact decimals; tenant ownership is derived through the product at every boundary.
 
 Phase 3 completion adds PackagingConfiguration (stable editable identity), ConfigurationRevision (immutable descriptor/lifecycle history), AttributeClaim (typed immutable numeric/text assertion), ClaimVerification (authorized physical attestation linking original and measured claims), and ClaimSelection (immutable canonical decision/rationale). ADR 0008 defines their boundaries. Existing bundled PackagingProfile snapshots remain compatible and immutable; they are not the current editable configuration collection.
 
@@ -34,3 +34,11 @@ All tenant-owned foreign key relationships must be checked for same-organization
 ## Phase 4 ingestion increment
 
 Ingestion adds ImportJob (tenant, private file key/checksum, lifecycle/options/mapping/preview/counters), ImportRow (immutable-through-API source cells/location and versioned catalog targets), Candidate (raw/proposed/normalized attribute, quality/comparison, reviewed decision and resulting claim), and append-only ReviewRecord (corrections/decisions/mapping/creation actor/time/reason). Applied rows reference the existing Evidence model and captured source via the job. Numeric claims reuse metric-v1 and remain reported; selection is explicit and never confers verification. Ordinary APIs cannot edit raw uploads/rows or delete review history. Source/artifact integrity does not prove authenticity.
+
+## Phase 5 implemented entities
+
+The planned ConstraintProfile/ConstraintVersion terminology above is implemented as Equipment (stable tenant/code identity), EquipmentRevision (immutable numbered definition), RuleSet (immutable numbered typed rules bound to a specification), RuleActivation (immutable approval) and Assessment (immutable actor/time/target revisions, full inputs, provenance, exact rules and per-rule output). Parent assessments must share product/package/equipment targets. Organization/request UUID uniqueness supplies retry safety. No separate ConstraintOutcome rows are needed: bounded detailed results are captured inside the immutable assessment JSON. See [compatibility API](compatibility-api.md). These implemented records supersede the constraints/assessment deferral in the historical introduction.
+
+## Phase 6 extraction increment
+
+ImportJob now distinguishes deterministic uploads and AI extraction jobs, with a protected original-source reference, tenant/request identity and bounded operational metadata. Candidate retains extraction provenance/quote/schema/model and original validation state. ImportRow and immutable ReviewRecord remain the target/review boundary; no duplicate evidence, candidate or assessment models are added. Assessment evidence snapshots now carry extraction metadata. See [AI guide](ai-extraction-api.md) and ADR 0011.

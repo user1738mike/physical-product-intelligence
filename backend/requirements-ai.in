@@ -1,0 +1,2 @@
+-r requirements.in
+openai==3.31.0

@@ -8,7 +8,7 @@ describe("foundation contract", () => {
     const html = renderToStaticMarkup(<Home />);
     expect(html).toContain("Physical Product Intelligence Cloud");
     expect(html).toContain(
-      "Product records and packaging APIs are available. Evidence imports require review. Assessments are not yet available.",
+      "Product records and packaging APIs are available. Evidence imports require review. Documented-constraint assessments are available; physical safety is not certified.",
     );
     expect(html).toContain('aria-labelledby="title"');
     expect(html).not.toContain("<form");

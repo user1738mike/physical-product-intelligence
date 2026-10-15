@@ -22,6 +22,17 @@ export const importsPath = (org: string) =>
 export const importsApiPath = (org: string) =>
   `/api/v1/organizations/${encodeURIComponent(org)}/imports/`;
 export type ImportJob = {
+  mode?: "deterministic" | "ai";
+  source_job_id?: string | null;
+  extraction?: {
+    provider: string;
+    model: string;
+    schema_version: string;
+    attempts: number;
+    retryable: boolean;
+    stage: string;
+    duration_ms?: number;
+  };
   id: string;
   display_name: string;
   status: string;
@@ -47,6 +58,20 @@ export type ImportJob = {
   };
 };
 export type Candidate = {
+  extraction?: {
+    method: string;
+    provider: string;
+    model: string;
+    schema_version: string;
+    extracted_at: string;
+    source_job_id: string;
+    source_sha256: string;
+    segment: number | null;
+    quote: string;
+    grounded: boolean;
+    validation: string;
+    confidence: null;
+  };
   id: string;
   row_id: string;
   sku: string;
@@ -93,7 +118,23 @@ export type ReviewRecord = {
   at: string;
   reason: string;
 };
+export type AICapability = {
+  available: boolean;
+  reason: string;
+  schema_version: string;
+  max_candidates: number;
+  max_text_chars: number;
+  privacy_notice: string;
+};
 export const ingestion = {
+  aiCapability: (org: string) =>
+    request<AICapability>(importsApiPath(org) + "ai-capabilities/"),
+  startExtraction: (org: string, source: string, data: unknown) =>
+    request<ImportJob>(
+      importsApiPath(org) + `${encodeURIComponent(source)}/extractions/`,
+      "POST",
+      data,
+    ),
   limits: (org: string) =>
     request<{ formats: string[]; limits: Record<string, number> }>(
       importsApiPath(org) + "limits/",
