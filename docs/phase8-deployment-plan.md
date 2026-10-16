@@ -1,5 +1,7 @@
 # Phase 8 deployment plan
 
+Phase8B supplies the concrete [single-host target/configuration handoff](phase8b-target-handoff.md), `compose.host.yaml` and host nginx/env templates. They extend this same production application base with real private scanning and narrowly trusted TLS ingress; they are not a second hosting strategy or a deployed target. See [actual gate outcomes](phase8b-release-closure-report.md) before attempting promotion. Never substitute rehearsal credentials/settings/certificates for the operator-provisioned host configuration.
+
 This is one Docker Compose path: `compose.production.yaml` is the application base; `compose.rehearsal.yaml` adds isolated local TLS/PostgreSQL/ClamAV/ingress for rehearsal. No hosting account, Linux server, production domain, budget or deployment authorization is assumed. Local rehearsal is authorized; remote cutover, DNS, image publication and Git mutations require separate authorization.
 
 ## Capability reconciliation

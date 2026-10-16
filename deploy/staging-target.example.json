@@ -1,0 +1,17 @@
+{
+  "environment": "staging",
+  "target_host": "REPLACE_WITH_AUTHORIZED_LINUX_HOST",
+  "provider_account_owner": "REPLACE_WITH_EXISTING_HOST_OR_APPROVED_ACCOUNT",
+  "region_and_data_residency": "REQUIRES_OWNER_DECISION",
+  "public_origin": "https://REPLACE_WITH_APPROVED_DOMAIN",
+  "exposure": "PRIVATE_PILOT_ALLOWLIST_OR_VPN_REQUIRES_OWNER_DECISION",
+  "deployment_authorized": false,
+  "commercial_mode": "REQUIRES_APPROVED_MANUAL_PRIVATE_PILOT_PROCESS",
+  "runtime_env_file": "/etc/ppi/runtime.env",
+  "migration_env_file": "/etc/ppi/migration.env",
+  "database_ca_file": "/etc/ppi/database-ca.crt",
+  "repository": "user1738mike/physical-product-intelligence",
+  "provisional_host": { "vcpu": 4, "ram_gib": 8, "encrypted_ssd": true },
+  "budget_limit": "REQUIRES_OWNER_DECISION_NO_PURCHASE_AUTHORIZED",
+  "incident_backup_retention_owner": "REQUIRES_OWNER_DECISION"
+}

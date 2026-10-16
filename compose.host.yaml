@@ -1,0 +1,87 @@
+# Authorized single Linux host + separately provisioned TLS PostgreSQL only.
+# Never combine with development/rehearsal overlays or use customer data before acceptance.
+services:
+  scanner:
+    image: ${PPI_SCANNER_IMAGE:?Reviewed immutable scanner reference required}
+    volumes: ["scanner_signatures:/var/lib/clamav"]
+    environment: { CLAMAV_NO_MILTERD: "true" }
+    restart: unless-stopped
+    mem_limit: 3g
+    cpus: 2
+    healthcheck:
+      start_period: 180s
+      interval: 15s
+      timeout: 5s
+      retries: 30
+  backend:
+    environment:
+      POSTGRES_SSLROOTCERT: /certs/database-ca.crt
+      DJANGO_TRUST_PROXY: "true"
+      TRUSTED_PROXY_CIDRS: ${PPI_EDGE_IPV4:?Reserved trusted ingress address required}/32
+      CLAMD_HOST: scanner
+      AI_EXTRACTION_ENABLED: "false"
+    volumes:
+      [
+        "${PPI_DATABASE_CA_FILE:?Protected database CA path required}:/certs/database-ca.crt:ro",
+      ]
+    depends_on:
+      scanner: { condition: service_healthy }
+  migration:
+    environment:
+      POSTGRES_SSLROOTCERT: /certs/database-ca.crt
+      CLAMD_HOST: scanner
+      AI_EXTRACTION_ENABLED: "false"
+    volumes:
+      [
+        "${PPI_DATABASE_CA_FILE:?Protected database CA path required}:/certs/database-ca.crt:ro",
+      ]
+  frontend:
+    environment:
+      API_BACKEND_ORIGIN: https://${PPI_DOMAIN:?Approved TLS hostname required}:8443
+  edge:
+    image: ${PPI_INGRESS_IMAGE:?Reviewed immutable ingress reference required}
+    user: "101:101"
+    entrypoint: [nginx, -g, "daemon off;"]
+    read_only: true
+    tmpfs: ["/tmp:size=32m,mode=1777"]
+    volumes:
+      - "${PPI_NGINX_CONFIG:?Rendered reviewed nginx configuration required}:/etc/nginx/nginx.conf:ro"
+      - "${PPI_TLS_DIRECTORY:?Protected host certificate directory required}:/certs:ro"
+    ports:
+      [
+        "${PPI_BIND_ADDRESS:?Explicit approved exposure address required}:443:8443",
+      ]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    restart: unless-stopped
+    mem_limit: 128m
+    depends_on:
+      backend: { condition: service_healthy }
+      frontend: { condition: service_healthy }
+    networks:
+      default:
+        ipv4_address: ${PPI_EDGE_IPV4:?Reserved trusted ingress address required}
+        aliases: ["${PPI_DOMAIN:?Approved TLS hostname required}"]
+    healthcheck:
+      test:
+        [
+          CMD,
+          curl,
+          --fail,
+          --silent,
+          --show-error,
+          --resolve,
+          "${PPI_DOMAIN}:8443:127.0.0.1",
+          "https://${PPI_DOMAIN}:8443/api/v1/health/ready/",
+        ]
+      interval: 15s
+      timeout: 5s
+      start_period: 15s
+      retries: 10
+networks:
+  default:
+    ipam:
+      config:
+        [{ subnet: "${PPI_SUBNET:?Collision-checked host subnet required}" }]
+volumes:
+  scanner_signatures:

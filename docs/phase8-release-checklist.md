@@ -1,5 +1,19 @@
 # Phase 8 release checklist
 
+## Phase 8B follow-up — 2026-10-16
+
+- [x] Reconcile the user's subsequent clean Phase8 commit2cdb78e with the retained dirty-build manifest and verify prior receipt hashes.
+- [x] Complete a real sandboxed Chromium journey through private-CA-verified HTTPS, including download byte integrity, reviewed extraction, all assessment outcomes and tenant/role/revocation/logout denials.
+- [x] Run202 backend/37 frontend/15 script tests and18 mocked evaluation cases; check migrations/schema, full frontend build and deployment syntax.
+- [x] Obtain a current frontend npm advisory result in the Linux runtime: zero reported findings; preserve the earlier native network failure separately.
+- [x] Diagnose hosted startup failure from GitHub's visible annotations: account billing lock; no billing changes made.
+- [x] Prepare one host overlay, protected configuration templates, exact deployment commands and a narrowly scoped proposed commit/push handoff.
+- [ ] Obtain valid fresh official Grype DB and passing reviewed image/backend dependency results; current seven-image inventory remains blocked.
+- [ ] Owner resolves the GitHub billing lock, authorizes publishing the reviewed Phase8B candidate, and verifies all exact-SHA hosted jobs.
+- [ ] Approve/provision the specific staging host/domain/region/exposure/budget and external secrets; execute separate staging acceptance before any production decision.
+
+See [the closure report](phase8b-release-closure-report.md) and [target handoff](phase8b-target-handoff.md). Local browser success does not check the actual staging/public TLS endpoint. Historical Phase8 checklist items below retain their original scope; unmet promotion gates remain required.
+
 Use this with the [deployment plan](phase8-deployment-plan.md), [actual report](phase8-completion-report.md) and [operations guide](deployment-and-operations.md). Checked items below concern the synthetic local rehearsal only. They do not approve a customer deployment.
 
 ## Local evidence
