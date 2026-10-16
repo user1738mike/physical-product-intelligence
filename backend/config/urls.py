@@ -3,6 +3,7 @@ from django.urls import include, path
 from drf_spectacular.views import SpectacularAPIView
 
 from accounts.views import CsrfView, LoginView, LogoutView, MeView, RegisterView
+from billing.views import SyntheticInbox
 from operations.views import LiveView, ReadyView
 from organizations.views import (
     AuditView,
@@ -16,6 +17,9 @@ from organizations.views import (
 )
 
 urlpatterns = [
+    path("api/v1/billing/synthetic-inbox/", SyntheticInbox.as_view()),
+    path("api/v1/organizations/<uuid:organization_id>/billing/", include("billing.views")),
+    path("api/v1/organizations/<uuid:organization_id>/commercial/", include("commercial.views")),
     path("api/v1/organizations/<uuid:organization_id>/", include("compatibility.urls")),
     path("api/v1/organizations/<uuid:organization_id>/imports/", include("ingestion.urls")),
     path("api/v1/organizations/<uuid:organization_id>/products/", include("products.urls")),

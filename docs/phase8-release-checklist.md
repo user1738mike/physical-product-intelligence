@@ -1,5 +1,22 @@
 # Phase 8 release checklist
 
+## Phase 9B candidate
+
+- [ ] Publish only after separate authorization and obtain passing exact-SHA hosted CI.
+- [ ] Obtain fresh valid Grype results for the new images; no earlier image acceptance transfers.
+- [ ] Approve target/domain/region/budget and validate staging migrations, runtime grants, tenant and financial flows.
+- [ ] Before real collection: select/approve provider and merchant account, commercial/currency/tax/refund/grace policy, official adapter verification and separately authorized sandbox testing.
+
+Local simulator results are distinguished from real collection in [the Phase 9B report](phase9b-completion-report.md). No production release is declared.
+
+## Phase 9A candidate
+
+- [ ] Obtain passing exact-candidate hosted CI after the account billing lock is resolved.
+- [ ] Obtain acceptable fresh Grype DB and assess the new Phase 9A images; old images/results cannot clear this gate.
+- [ ] Approve staging host/domain/region/exposure/budget, separately authorize deployment, then validate migrations, exact runtime grants and commercial/tenant/browser flows.
+
+Phase 9A local verification and new artifact identities are recorded in [its report](phase9a-completion-report.md). Historical Phase 8/8B manifests remain unchanged. Manual plan assignments and usage accounting do not implement payment collection or approve commercial launch.
+
 ## Phase 8B follow-up — 2026-10-16
 
 - [x] Reconcile the user's subsequent clean Phase8 commit2cdb78e with the retained dirty-build manifest and verify prior receipt hashes.

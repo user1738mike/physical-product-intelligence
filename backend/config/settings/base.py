@@ -21,6 +21,8 @@ INSTALLED_APPS = [
     "products",
     "ingestion",
     "compatibility",
+    "commercial",
+    "billing",
 ]
 MIDDLEWARE = [
     "operations.middleware.RequestLogMiddleware",
@@ -85,6 +87,7 @@ STORAGES = {
 }
 INGESTION_ALLOW_UNSCANNED = False
 AI_EXTRACTION_ENABLED = os.environ.get("AI_EXTRACTION_ENABLED", "false").lower() == "true"
+BILLING_SIMULATOR_ENABLED = False
 AI_EXTRACTION_PROVIDER = os.environ.get("AI_EXTRACTION_PROVIDER", "openai")
 AI_EXTRACTION_MODEL = os.environ.get("AI_EXTRACTION_MODEL", "").strip()
 AI_EXTRACTION_MAX_CONCURRENT = max(

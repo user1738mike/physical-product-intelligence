@@ -13,6 +13,7 @@ if os.environ.get("PPI_REHEARSAL_FIXTURES") != "synthetic-only" or not re.fullma
 ):
     raise ImproperlyConfigured("Rehearsal settings require an isolated synthetic database")
 ALLOW_REHEARSAL_PROVIDER = True
+BILLING_SIMULATOR_ENABLED = True
 AI_EXTRACTION_ENABLED = True
 AI_EXTRACTION_PROVIDER = "recorded"
 AI_EXTRACTION_MODEL = "recorded-spec-v1"

@@ -69,6 +69,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--directory", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--sdk-image", default="ppi-phase8-backend-sdk")
     args = parser.parse_args()
     folder, output = args.directory.resolve(), args.output.resolve()
     if not all(p.is_relative_to(ROOT / "artifacts") for p in (folder, output)):
@@ -97,7 +98,7 @@ def main():
     code, stdout, stderr = execute(base + [scanner, "db", "status"])
     (output / "database-status.log").write_text(stdout + stderr, encoding="utf-8")
     valid = code == 0 and fresh_database(stdout)
-    references = {**manifest["images"], "backend_sdk": image("ppi-phase8-backend-sdk")}
+    references = {**manifest["images"], "backend_sdk": image(args.sdk_image)}
     prior = ROOT / "artifacts/phase8-previous/previous.json"
     if prior.exists():
         references["prior_code_rollback"] = json.loads(prior.read_text())["image"]

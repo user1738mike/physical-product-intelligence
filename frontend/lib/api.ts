@@ -34,6 +34,7 @@ export class ApiError extends Error {
   constructor(
     public status: number,
     message: string,
+    public code?: string,
   ) {
     super(message);
   }
@@ -87,9 +88,14 @@ export async function request<T>(
         return [];
       };
       const messages = collect(problem);
-      if (messages.length) message = messages.join(" ");
+      if (typeof problem.detail === "string") message = problem.detail;
+      else if (messages.length) message = messages.join(" ");
     }
-    throw new ApiError(response.status, message);
+    throw new ApiError(
+      response.status,
+      message,
+      typeof problem?.code === "string" ? problem.code : undefined,
+    );
   }
   return response.status === 204 ? (undefined as T) : response.json();
 }

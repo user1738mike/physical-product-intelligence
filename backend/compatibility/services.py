@@ -8,6 +8,7 @@ from django.utils import timezone
 from rest_framework.exceptions import NotFound, ValidationError
 
 from audit.services import record
+from commercial import services as commercial
 from ingestion.models import ImportJob
 from organizations.services import ADMIN, OWNER, authorize
 from products import services as catalog
@@ -91,6 +92,7 @@ def expected(actual, value):
 @transaction.atomic
 def create_equipment(actor, org_id, data):
     org, _ = authorize(actor, org_id, roles=MANAGERS, lock=True)
+    commercial.require(org, "equipment_write")
     values = catalog.validated(EquipmentInput, data)
     code = values.pop("code")
     try:
@@ -114,6 +116,7 @@ def create_equipment(actor, org_id, data):
 @transaction.atomic
 def edit_equipment(actor, org_id, equipment_id, data):
     org, _ = authorize(actor, org_id, roles=MANAGERS, lock=True)
+    commercial.require(org, "equipment_write")
     equipment = equipment_get(org, equipment_id)
     if equipment.status == "archived":
         raise ValidationError("Restore equipment to draft before editing.")
@@ -140,6 +143,8 @@ def equipment_state(actor, org_id, equipment_id, data):
     org, _ = authorize(actor, org_id, roles=MANAGERS, lock=True)
     equipment = equipment_get(org, equipment_id)
     values = catalog.validated(EquipmentState, data)
+    if values["status"] != "archived":
+        commercial.require(org, "equipment_write")
     expected(equipment.version, values["expected_version"])
     if equipment.status != values["status"]:
         equipment.status, equipment.modified_by = values["status"], actor
@@ -188,6 +193,7 @@ def source_snapshot(org, source):
 @transaction.atomic
 def create_rules(actor, org_id, equipment_id, data):
     org, _ = authorize(actor, org_id, roles=MANAGERS, lock=True)
+    commercial.require(org, "equipment_write")
     equipment = equipment_get(org, equipment_id)
     if equipment.status == "archived":
         raise ValidationError("Archived equipment cannot receive rules.")
@@ -228,6 +234,7 @@ def create_rules(actor, org_id, equipment_id, data):
 @transaction.atomic
 def activate(actor, org_id, equipment_id, rule_id, data):
     org, _ = authorize(actor, org_id, roles=MANAGERS, lock=True)
+    commercial.require(org, "equipment_write")
     equipment = equipment_get(org, equipment_id)
     rules = rule_get(equipment, rule_id)
     values = catalog.validated(ActivationInput, data)
@@ -318,6 +325,7 @@ def assess(actor, org_id, data):
         if old.request_sha256 != digest:
             raise catalog.Conflict("Request identifier was used for different assessment operands.")
         return old
+    commercial.reserve(org, "assessments", values["request_id"], digest)
     product = catalog.product_in(org, values["product_id"])
     catalog.require_active(product)
     packaging = (
@@ -371,6 +379,7 @@ def assess(actor, org_id, data):
         results=freeze(results),
     )
     event(actor, org, "assessment.created", assessment)
+    commercial.finalize(org, "assessments", values["request_id"], actor)
     return assessment
 
 

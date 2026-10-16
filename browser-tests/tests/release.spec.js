@@ -437,6 +437,135 @@ test("real HTTPS browser release journey with reviewed recorded extraction", asy
     }),
   ).toBeVisible();
   mark("missing_evidence_indeterminate");
+  await page.getByRole("link", { name: "Plan and usage", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "Plan and usage", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Manual pilot · version 1", { exact: true }),
+  ).toBeVisible();
+  const usageReceipt = await authorized(page, api + "commercial/");
+  expect(usageReceipt.status).toBe(200);
+  expect(usageReceipt.data.meters.assessments.used).toBe(4);
+  expect(usageReceipt.data.meters.extractions.used).toBe(1);
+  await expect(page.getByRole("table")).toContainText("Unlimited");
+  if (fixture.commercial) {
+    for (const status of ["exhausted", "suspended", "expired"]) {
+      await page.goto(
+        `/organizations/${fixture.commercial[status]}/commercial`,
+      );
+      await expect(
+        page.getByRole("heading", { name: "Plan and usage", exact: true }),
+      ).toBeVisible();
+      if (status === "exhausted") {
+        await expect(page.getByRole("table")).toContainText(
+          "Allowance exhausted",
+        );
+        await page.goto(
+          `/organizations/${fixture.commercial[status]}/products/new`,
+        );
+        await page
+          .getByLabel("Organization SKU", { exact: true })
+          .fill("DENIED-CAP");
+        await page
+          .getByLabel("Product name", { exact: true })
+          .fill("Denied by capacity");
+        await submit(page, "Create product");
+        await expect(
+          form(page, "Create product").getByRole("alert"),
+        ).toContainText("Active product limit reached");
+      } else {
+        await expect(page.getByText(status, { exact: true })).toBeVisible();
+      }
+    }
+    await page.goto(root + "/commercial");
+    await expect(
+      page.getByText("Manual pilot · version 1", { exact: true }),
+    ).toBeVisible();
+  }
+  mark("commercial_owner_usage_switching_finite_expired_suspended");
+  await page.goto(root + "/billing");
+  await expect(
+    page.getByRole("heading", { name: "Billing history", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("No statements yet.", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Pay now", exact: true }),
+  ).toHaveCount(0);
+  if (fixture.billing) {
+    const pending = fixture.billing.pending;
+    await page.goto(`/organizations/${pending.org}/billing`);
+    await expect(
+      page.getByRole("heading", { name: "Billing history", exact: true }),
+    ).toBeVisible();
+    await expect(page.getByText("pending", { exact: true })).toBeVisible();
+    fs.writeFileSync(
+      "/results/billing-confirmation-request.json",
+      JSON.stringify({ requested: true }),
+    );
+    await expect
+      .poll(
+        async () => {
+          await page
+            .getByRole("button", {
+              name: "Refresh billing history",
+              exact: true,
+            })
+            .click();
+          return (
+            await authorized(
+              page,
+              `/api/v1/organizations/${pending.org}/billing/`,
+            )
+          ).data.statements[0].settlement_status;
+        },
+        { timeout: 90000, intervals: [1000, 3000] },
+      )
+      .toBe("settled");
+    await page
+      .getByRole("button", { name: "Refresh billing history", exact: true })
+      .click();
+    await expect(page.getByText("settled", { exact: true })).toBeVisible();
+    await expect(
+      page.getByText("Access assignment: Recorded", { exact: true }),
+    ).toBeVisible();
+    await page.screenshot({
+      path: "/results/billing-settled.png",
+      fullPage: true,
+    });
+    const downloaded = page.waitForEvent("download");
+    await page
+      .getByRole("link", { name: "Download internal statement", exact: true })
+      .click();
+    expect(fs.readFileSync(await (await downloaded).path(), "utf8")).toContain(
+      "not a tax invoice",
+    );
+    for (const state of ["partial", "unknown", "action_required"]) {
+      await page.goto(`/organizations/${fixture.billing[state].org}/billing`);
+      await expect(
+        page.getByRole("heading", { name: "Billing history", exact: true }),
+      ).toBeVisible();
+      if (state === "partial")
+        await expect(
+          page.getByText("partially settled", { exact: true }),
+        ).toBeVisible();
+      else if (state === "unknown")
+        await expect(
+          page.getByText(/do not start a duplicate request/),
+        ).toBeVisible();
+      else
+        await expect(
+          page.getByText("action required", { exact: true }),
+        ).toBeVisible();
+    }
+    await page.goto(root + "/billing");
+    await expect(
+      page.getByText("No statements yet.", { exact: true }),
+    ).toBeVisible();
+  }
+  mark("billing_delayed_verified_confirmation_history_download_switching");
   // Existing API-only membership management is setup, never a substitute for the UI workflows.
   const membership = await authorized(page, api + "members/", "POST", {
     username: fixture.outsider.username,
@@ -449,6 +578,38 @@ test("real HTTPS browser release journey with reviewed recorded extraction", asy
   });
   const outsider = await outsiderContext.newPage();
   await login(outsider, fixture.outsider);
+  if (fixture.billing) {
+    await outsider.goto(
+      `/organizations/${fixture.billing.partial.org}/billing`,
+    );
+    await expect(
+      outsider.getByRole("heading", { name: "Billing history", exact: true }),
+    ).toBeVisible();
+    await expect(
+      outsider.getByText("partially settled", { exact: true }),
+    ).toBeVisible();
+  }
+  await outsider.goto(root + "/billing");
+  await expect(
+    outsider.getByRole("alert").filter({ hasText: "Only organization owners" }),
+  ).toContainText("Only organization owners and administrators");
+  expect((await authorized(outsider, api + "billing/")).status).toBe(403);
+  if (fixture.commercial) {
+    await outsider.goto(
+      `/organizations/${fixture.commercial.admin}/commercial`,
+    );
+    await expect(
+      outsider.getByRole("heading", { name: "Plan and usage", exact: true }),
+    ).toBeVisible();
+    await expect(outsider.getByRole("table")).toContainText(
+      "Allowance exhausted",
+    );
+  }
+  await outsider.goto(root + "/commercial");
+  await expect(
+    outsider.getByRole("alert").filter({ hasText: "Only organization owners" }),
+  ).toContainText("Only organization owners and administrators");
+  expect((await authorized(outsider, api + "commercial/")).status).toBe(403);
   await outsider.goto(root + "/imports/" + job);
   await expect(
     outsider.getByRole("heading", { name: "AI extraction processing" }),
@@ -502,6 +663,8 @@ test("real HTTPS browser release journey with reviewed recorded extraction", asy
     ).status,
   ).toBe(204);
   await outsider.goto(root + "/products/" + product);
+  expect((await authorized(outsider, api + "commercial/")).status).toBe(404);
+  expect((await authorized(outsider, api + "billing/")).status).toBe(404);
   await expect(
     outsider
       .getByRole("alert")

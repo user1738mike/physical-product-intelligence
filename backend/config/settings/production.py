@@ -64,6 +64,13 @@ for cidr in TRUSTED_PROXY_CIDRS:
             "Trusted proxy CIDRs must be explicit restricted networks"
         ) from None
 READINESS_PRIVATE_STORAGE = True
+if (
+    os.environ.get("BILLING_PROVIDER", "disabled") != "disabled"
+    or os.environ.get("BILLING_SIMULATOR_ENABLED", "false").lower() != "false"
+):
+    raise ImproperlyConfigured(
+        "Payment collection is unconfigured; production simulators are prohibited"
+    )
 READINESS_DATABASE_ROLE = True
 INGESTION_ALLOW_UNSCANNED = False
 SECURE_SSL_REDIRECT = True

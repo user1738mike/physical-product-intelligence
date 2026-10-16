@@ -46,3 +46,16 @@ subprocess.run(
     check=True,
     timeout=30,
 )
+for unsafe in ({"BILLING_PROVIDER": "simulator"}, {"BILLING_SIMULATOR_ENABLED": "true"}):
+    result = subprocess.run(
+        [sys.executable, "manage.py", "check"],
+        cwd=ROOT / "backend",
+        env={**env, **unsafe},
+        capture_output=True,
+        text=True,
+        timeout=30,
+        check=False,
+    )
+    if result.returncode == 0 or "Payment collection is unconfigured" not in result.stderr:
+        raise RuntimeError("Production billing adapter boundary failed")
+print("production_billing_adapter_boundary_passed")

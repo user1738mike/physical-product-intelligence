@@ -1,5 +1,9 @@
 # Deployment and operations
 
+Phase 9B adds internal billing tables/backfill and narrowed [financial runtime grants](billing-operations.md). HTTP runtime must not receive financial processor/schema-owner privileges. Production collection remains disabled and rejects simulator enablement. No real payment credentials or merchant configuration are required/provisioned by this increment. Review financial retention/backup policy and the exact migration/runtime roles on the eventual approved staging host. Older Phase 8 rollback artifacts do not enforce the new commercial/billing controls and are not approved rollback candidates for this release.
+
+Phase 9A requires additive commercial migrations (including `btree_gist`), idempotent pilot enrollment/backfill and new runtime table grants before application rollout. Use the separate migration owner, preserve pre-migration backups, and apply the narrowed [commercial grants/operator procedures](commercial-operations.md). Runtime must not gain migration-owner or plan-assignment privileges. Validate enrollment and append-only/tenant guards with the actual runtime identity. Old Phase 8B browser/image evidence does not validate changed Phase 9A artifacts; scan, hosted CI and approved staging gates remain required.
+
 The [Phase 7 report](phase7-completion-report.md) distinguishes executed checks from release requirements. These procedures do not authorize deployment, destructive maintenance, or a provider call.
 
 ## Local Compose and network recovery

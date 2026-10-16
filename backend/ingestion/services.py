@@ -9,6 +9,7 @@ from django.utils import timezone
 from rest_framework.exceptions import NotFound, ValidationError
 
 from audit.services import record
+from commercial import services as commercial
 from organizations.services import ADMIN, OWNER, authorize
 from products import services as catalog
 from products import workflows
@@ -70,6 +71,7 @@ def upload(actor, organization_id, file):
     try:
         with transaction.atomic():
             org, _ = authorize(actor, organization_id, lock=True)
+            commercial.require(org, "evidence_import")
             if (
                 ImportJob.objects.filter(organization=org).exclude(status__in=TERMINAL).count()
                 >= 20
@@ -98,6 +100,7 @@ def upload(actor, organization_id, file):
 @transaction.atomic
 def validate(actor, org, job_id, values):
     job = job_in(actor, org, job_id, lock=True)
+    commercial.require(job.organization, "evidence_import")
     deterministic(job)
     version(job, values.pop("expected_version"))
     require_state(job, {"uploaded", "failed"})
@@ -143,6 +146,7 @@ def validate(actor, org, job_id, values):
 @transaction.atomic
 def map_fields(actor, org, job_id, values):
     job = job_in(actor, org, job_id, lock=True)
+    commercial.require(job.organization, "evidence_import")
     deterministic(job)
     version(job, values["expected_version"])
     require_state(job, {"uploaded"})
@@ -274,6 +278,14 @@ def process(actor, org, job_id, values):
     require_state(job, {"uploaded"})
     if not job.mapping or not job.preview:
         raise ValidationError("Validate and explicitly confirm a mapping first.")
+    commercial.reserve(
+        job.organization,
+        "extractions",
+        job.pk,
+        commercial.fingerprint(
+            {"sha256": job.sha256, "mapping": job.mapping, "options": job.options}
+        ),
+    )
     parsed = parsers.parse(job, job.options)
     job.status = "processing"
     seen = set()
@@ -355,6 +367,7 @@ def process(actor, org, job_id, values):
     }
     save_job(job)
     event(job, actor, "processed")
+    commercial.finalize(job.organization, "extractions", job.pk, actor)
     return job
 
 
@@ -406,6 +419,7 @@ def candidate_in(job, candidate_id):
 @transaction.atomic
 def review(actor, org, job_id, candidate_id, values):
     job = job_in(actor, org, job_id, lock=True, reviewer=True)
+    commercial.require(job.organization, "catalog_write")
     require_state(job, {"awaiting_review"})
     candidate = candidate_in(job, candidate_id)
     if job.mode == "ai":
@@ -493,6 +507,7 @@ def review(actor, org, job_id, candidate_id, values):
 @transaction.atomic
 def approve_creation(actor, org, job_id, row_id, values):
     job = job_in(actor, org, job_id, lock=True, reviewer=True)
+    commercial.require(job.organization, "catalog_write")
     require_state(job, {"awaiting_review"})
     try:
         row = job.rows.get(pk=row_id)
@@ -519,6 +534,7 @@ def approve_creation(actor, org, job_id, row_id, values):
 @transaction.atomic
 def refresh(actor, org, job_id, values):
     job = job_in(actor, org, job_id, lock=True, reviewer=True)
+    commercial.require(job.organization, "catalog_write")
     version(job, values["expected_version"])
     require_state(job, {"awaiting_review"})
     for row in job.rows.all():
@@ -580,6 +596,7 @@ def apply(actor, org, job_id, values):
     job = job_in(actor, org, job_id, lock=True, reviewer=True)
     if job.status in {"completed", "completed_with_errors"}:
         return job
+    commercial.require(job.organization, "catalog_write")
     version(job, values["expected_version"])
     require_state(job, {"awaiting_review"})
     if job.mode == "ai":
@@ -845,6 +862,7 @@ def cancel(actor, org, job_id, values):
         else {"uploaded", "failed", "awaiting_review"},
     )
     job.status, job.completed_at = "cancelled", timezone.now()
+    commercial.release(job.organization, job.pk)
     if job.mode == "ai":
         job.extraction.update(stage="cancelled", retryable=False)
     save_job(job)

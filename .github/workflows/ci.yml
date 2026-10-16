@@ -47,7 +47,7 @@ jobs:
       - run: python manage.py makemigrations --check --dry-run
       - run: python manage.py migrate --noinput
       - run: python manage.py migrate --check
-      - run: python manage.py test accounts organizations operations products ingestion compatibility
+      - run: python manage.py test accounts organizations operations products ingestion compatibility commercial billing
       - run: python manage.py evaluate_extraction
       - run: python manage.py check_ai_provider
       - run: python -m unittest discover -s ../scripts -p 'test_*.py'
@@ -91,7 +91,7 @@ jobs:
       - run: docker compose exec -T backend python manage.py migrate --noinput
       - run: docker compose exec -T backend python manage.py migrate --check
       - run: docker compose up --build --wait --wait-timeout 240
-      - run: docker compose exec -T backend python manage.py test accounts organizations operations products ingestion compatibility --settings=config.settings.test
+      - run: docker compose exec -T backend python manage.py test accounts organizations operations products ingestion compatibility commercial billing --settings=config.settings.test
       - run: python scripts/phase2_smoke.py --allow-create-test-data
       - run: python scripts/phase3_smoke.py --allow-create-test-data
       - run: python scripts/smoke.py
@@ -196,7 +196,7 @@ jobs:
           python scripts/phase2_smoke.py --allow-create-test-data
           python scripts/phase3_smoke.py --allow-create-test-data
       - name: Real browser with private test-only CA trust and sandbox
-        run: python scripts/browser_acceptance.py --directory artifacts/browser-ci --output artifacts/browser-results
+        run: python scripts/browser_acceptance.py --directory artifacts/browser-ci --output artifacts/browser-results --commercial-fixtures --billing-fixtures
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -207,4 +207,6 @@ jobs:
             artifacts/browser-results/browser.json
             artifacts/browser-results/browser.log
             artifacts/browser-results/compatible-history.png
+            artifacts/browser-results/billing-settled.png
+            artifacts/browser-results/billing-processing.json
           if-no-files-found: warn

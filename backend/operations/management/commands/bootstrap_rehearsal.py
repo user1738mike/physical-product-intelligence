@@ -45,4 +45,57 @@ class Command(BaseCommand):
                     else (sql.Identifier(role),)
                 )
                 cursor.execute(sql.SQL(template).format(*ids))
+            for table in (
+                "plan",
+                "account",
+                "usage",
+                "assignmentevent",
+                "reservationevent",
+                "operatorevent",
+                "assignment",
+            ):
+                cursor.execute(
+                    sql.SQL("REVOKE UPDATE, DELETE ON {} FROM {}").format(
+                        sql.Identifier("commercial_" + table), sql.Identifier(role)
+                    )
+                )
+            cursor.execute(
+                sql.SQL("REVOKE INSERT ON commercial_operatorevent FROM {}").format(
+                    sql.Identifier(role)
+                )
+            )
+            for table in (
+                "billingaccount",
+                "price",
+                "statement",
+                "paymentoperation",
+                "inbox",
+                "moneyevent",
+                "allocation",
+                "accessgrant",
+                "statementadjustment",
+                "billingaudit",
+                "gatewayobject",
+                "gatewaycall",
+            ):
+                cursor.execute(
+                    sql.SQL("REVOKE UPDATE, DELETE ON {} FROM {}").format(
+                        sql.Identifier("billing_" + table), sql.Identifier(role)
+                    )
+                )
+            for table in (
+                "price",
+                "statement",
+                "moneyevent",
+                "allocation",
+                "accessgrant",
+                "statementadjustment",
+                "gatewayobject",
+                "gatewaycall",
+            ):
+                cursor.execute(
+                    sql.SQL("REVOKE INSERT ON {} FROM {}").format(
+                        sql.Identifier("billing_" + table), sql.Identifier(role)
+                    )
+                )
         self.stdout.write("rehearsal_runtime_grants_current")
