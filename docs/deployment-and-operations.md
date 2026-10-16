@@ -128,6 +128,10 @@ Only after explicit human authorization run `python manage.py check_ai_provider 
 
 ## Pre-release acceptance gates
 
+Phase 8 extends this guide with the executable [deployment plan](phase8-deployment-plan.md), [current release checklist](phase8-release-checklist.md) and [evidence-based report](phase8-completion-report.md). `compose.rehearsal.yaml` adds isolated local TLS/PostgreSQL/ClamAV/ingress to the production base. `scripts/release.py` coordinates synthetic-only target identity, host/DB migration locks, quiesced backup, forward migration, rollout, compatible prior-code rollback and isolated restore; it has no remote publish/deploy action. `release_preflight.py` refuses incomplete target, dirty source, unverified hosted CI and missing artifact security evidence. Rehearsal fixtures/certificates/credentials must never be promoted for customer use.
+
+Readiness now actively pings the required built-in ClamAV adapter; scanner loss yields 503 while process liveness remains available. API no-store handling includes early Host/CSRF denials. Python/Node and OS packages receive security patches in release images; CI image scans fail on high/critical findings. Local functional/scanner/recovery success does not waive remaining image findings, manual browser acceptance, hosted candidate CI or actual infrastructure/commercial gates. No live AI calls are allowed during Phase 8.
+
 - [ ] Approve reviewed commit/push separately; require passing hosted CI for exact SHA and resolve Actions failures.
 - [ ] Build, scan and pin immutable images; validate actual secret injection and disabled-AI defaults.
 - [ ] Verify TLS database CA/hostname, separate roles/grants, provenance/immutability triggers under runtime identity.

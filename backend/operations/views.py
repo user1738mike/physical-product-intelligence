@@ -12,6 +12,8 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from ingestion.scanning import scanner_ready
+
 from .database import runtime_role_privileged
 
 logger = logging.getLogger("operations.health")
@@ -59,6 +61,11 @@ class ReadyView(APIView):
                     or not settings.INGESTION_SCANNER
                 ):
                     raise DatabaseError("Private storage/scanner configuration unavailable")
+                if (
+                    settings.INGESTION_SCANNER == "ingestion.scanning.clamd_scan"
+                    and not scanner_ready()
+                ):
+                    raise DatabaseError("Required scanner unavailable")
         except (DatabaseError, OSError, ValueError):
             logger.warning("readiness_unavailable")
             return Response({"status": "unavailable", "service": "backend"}, status=503)

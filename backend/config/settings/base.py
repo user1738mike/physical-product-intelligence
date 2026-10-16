@@ -23,9 +23,9 @@ INSTALLED_APPS = [
     "compatibility",
 ]
 MIDDLEWARE = [
+    "operations.middleware.RequestLogMiddleware",
     "operations.middleware.TrustedProxyMiddleware",
     "django.middleware.security.SecurityMiddleware",
-    "operations.middleware.RequestLogMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",

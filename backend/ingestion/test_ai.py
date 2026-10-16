@@ -10,7 +10,7 @@ from types import SimpleNamespace
 from unittest import skipUnless
 from unittest.mock import Mock, patch
 
-from django.db import IntegrityError, close_old_connections, connection, transaction
+from django.db import IntegrityError, close_old_connections, connection, connections, transaction
 from django.test import TestCase, TransactionTestCase, override_settings
 from django.utils import timezone
 from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
@@ -794,7 +794,7 @@ class ConcurrentExtractionTests(Fixture, TransactionTestCase):
                 barrier.wait(timeout=10)
                 return self.start(request_id=key).pk
             finally:
-                close_old_connections()
+                connections.close_all()
 
         with ThreadPoolExecutor(max_workers=2) as pool:
             results = list(pool.map(lambda _: run(), range(2)))
@@ -820,7 +820,7 @@ class ConcurrentExtractionTests(Fixture, TransactionTestCase):
                         self.owner, self.org.pk, job.pk, {"expected_version": job.version}
                     ).pk
                 finally:
-                    close_old_connections()
+                    connections.close_all()
 
             with ThreadPoolExecutor(max_workers=2) as pool:
                 result = list(pool.map(lambda _: run(), range(2)))

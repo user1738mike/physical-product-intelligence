@@ -24,6 +24,10 @@ class ExtractionProvider(Protocol):
 def availability():
     if not settings.AI_EXTRACTION_ENABLED:
         return False, "disabled"
+    if settings.AI_EXTRACTION_PROVIDER == "recorded":
+        if getattr(settings, "ALLOW_REHEARSAL_PROVIDER", False):
+            return True, "synthetic_rehearsal_only"
+        return False, "unsupported_provider"
     if settings.AI_EXTRACTION_PROVIDER != "openai":
         return False, "unsupported_provider"
     if not os.environ.get("OPENAI_API_KEY", "").strip():
@@ -106,4 +110,8 @@ def configured_provider(*, max_output_tokens=2500):
     ready, category = availability()
     if not ready:
         raise ProviderFailure(category)
+    if category == "synthetic_rehearsal_only":
+        from .rehearsal_provider import RecordedProvider
+
+        return RecordedProvider()
     return OpenAIProvider(max_output_tokens=max_output_tokens)

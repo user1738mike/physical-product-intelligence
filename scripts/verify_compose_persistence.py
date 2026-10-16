@@ -25,14 +25,18 @@ def main():
     def snapshot():
         return json.loads(
             subprocess.check_output(
-                compose + ["exec", "-T", "backend", "python", "-c", code], text=True, timeout=60
+                compose + ["exec", "-T", "backend", "python", "-c", code],
+                text=True,
+                timeout=60,
             )
         )
 
     before = snapshot()
     subprocess.run(compose + ["stop"], check=True, timeout=120)
     subprocess.run(
-        compose + ["up", "-d", "--wait", "--wait-timeout", "180"], check=True, timeout=240
+        compose + ["up", "-d", "--wait", "--wait-timeout", "180"],
+        check=True,
+        timeout=240,
     )
     assert before == snapshot(), "Record counts or private bytes changed across restart"
     print(

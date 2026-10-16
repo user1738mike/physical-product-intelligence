@@ -1,5 +1,7 @@
 # Phase roadmap
 
+Phase 8 current status: production-like local HTTPS deployment rehearsal and release tooling implemented; see the [capability/deployment matrix](../phase8-deployment-plan.md), [checklist](../phase8-release-checklist.md) and [actual final verification/readiness report](../phase8-completion-report.md). Real scanner fail-closed behavior, isolated database/private-file recovery and prior-code compatibility are locally exercised. Historical Phase 1–7 blockers below are superseded only where the new report provides evidence. No remote staging/production deployment or live AI request occurred. Hosted CI for the exact committed candidate, artifact vulnerability acceptance, real infrastructure, monitoring/retention and explicit pilot commercial process remain release gates. Subscriptions, entitlements, commercial usage metering and billing remain absent; paid public launch is not approved.
+
 Phase 1: foundation implemented; its normal Docker startup verification remains open because host address pools were exhausted. Preserve volumes and other projects' networks when resolving that blocker.
 
 Phase 2: identity, session/CSRF authentication, organizations, owner/admin/member services, membership-derived tenant boundaries, audit history, reviewable migrations and account/organization frontend implemented. Native PostgreSQL tests and frontend checks are recorded in [the execution report](../phase2-implementation-report.md). Acceptance requires the report's final checks and explicit review of remaining runtime/deployment limitations.

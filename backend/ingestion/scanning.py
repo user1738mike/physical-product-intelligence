@@ -6,6 +6,18 @@ import struct
 import time
 
 
+def scanner_ready():
+    """Bounded dependency probe, not a clean-file verdict or signature-freshness claim."""
+    host = os.environ.get("CLAMD_HOST", "").strip()
+    port = int(os.environ.get("CLAMD_PORT", "3310"))
+    if not host or not 1 <= port <= 65535:
+        return False
+    with socket.create_connection((host, port), timeout=2) as stream:
+        stream.settimeout(2)
+        stream.sendall(b"zPING\0")
+        return stream.recv(32) == b"PONG\0"
+
+
 def clamd_scan(data):
     host = os.environ.get("CLAMD_HOST", "").strip()
     port = int(os.environ.get("CLAMD_PORT", "3310"))

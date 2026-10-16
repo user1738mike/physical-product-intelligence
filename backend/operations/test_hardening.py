@@ -11,7 +11,7 @@ from unittest.mock import patch
 
 from django.contrib.auth.models import AnonymousUser
 from django.core.management import call_command
-from django.db import DatabaseError, close_old_connections, connection, transaction
+from django.db import DatabaseError, close_old_connections, connection, connections, transaction
 from django.test import SimpleTestCase, TestCase, TransactionTestCase, override_settings
 from rest_framework.test import APIClient, APIRequestFactory
 
@@ -179,7 +179,7 @@ class ConcurrentLimiterTests(TransactionTestCase):
             except Limited:
                 return False
             finally:
-                close_old_connections()
+                connections.close_all()
 
         with ThreadPoolExecutor(max_workers=8) as pool:
             results = list(pool.map(run, range(8)))

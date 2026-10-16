@@ -10,7 +10,7 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.db import close_old_connections, connection
+from django.db import close_old_connections, connection, connections
 from django.test import TestCase, TransactionTestCase, override_settings
 from django.utils import timezone
 from openpyxl import Workbook
@@ -757,7 +757,7 @@ class ConcurrentImportTests(ImportFixture, TransactionTestCase):
                     self.owner, self.org.pk, job.pk, {"expected_version": job.version}
                 ).status
             finally:
-                close_old_connections()
+                connections.close_all()
 
         with ThreadPoolExecutor(max_workers=2) as pool:
             results = list(pool.map(lambda _: apply_once(), range(2)))

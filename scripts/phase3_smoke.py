@@ -1,6 +1,7 @@
 """Verify tenant product APIs through Next.js using a disposable database only."""
 
 import argparse
+import os
 import secrets
 
 from phase2_smoke import Browser
@@ -160,6 +161,7 @@ def main():
         browser = Browser()
         username = "product-smoke-" + secrets.token_hex(8)
         credentials = {"username": username, "password": secrets.token_hex(24)}
+        browser.fixture_credentials = credentials
         profile = browser.request("/api/v1/auth/register/", data=credentials, expected=201)
         browser.request("/api/v1/auth/login/", data=credentials)
         org = browser.request(
@@ -282,7 +284,12 @@ def main():
     compatibility_workflows(first, second, org["id"], other_org["id"])
     from phase6_smoke import intelligence_disabled_workflow
 
-    intelligence_disabled_workflow(first, second, org["id"], other_org["id"])
+    if os.environ.get("PPI_SMOKE_FIXTURES") == "recorded":
+        from phase8_smoke import recorded_workflow
+
+        recorded_workflow(first, second, org["id"], other_org["id"])
+    else:
+        intelligence_disabled_workflow(first, second, org["id"], other_org["id"])
     first.request(
         f"/api/v1/organizations/{org['id']}/members/{member['id']}/",
         method="DELETE",

@@ -10,3 +10,4 @@ max_requests = 1000
 max_requests_jitter = 100
 accesslog = None  # Django emits normalized route logs without query/header/body content.
 errorlog = "-"
+control_socket_disable = True  # No runtime management socket on the read-only application root.

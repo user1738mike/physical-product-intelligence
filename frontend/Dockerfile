@@ -1,4 +1,5 @@
-FROM node:24.15.0-bookworm-slim AS dependencies
+FROM node:24.22.0-bookworm-slim AS dependencies
+RUN apt-get update && apt-get upgrade -y --no-install-recommends && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci && chown -R node:node /app
@@ -14,7 +15,8 @@ ENV NEXT_TELEMETRY_DISABLED=1
 COPY . .
 RUN npm run build
 
-FROM node:24.15.0-bookworm-slim AS production
+FROM node:24.22.0-bookworm-slim AS production
+RUN apt-get update && apt-get upgrade -y --no-install-recommends && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 HOSTNAME=0.0.0.0 PORT=3000
 COPY --from=builder --chown=node:node /app/.next/standalone ./

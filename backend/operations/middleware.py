@@ -41,6 +41,9 @@ class RequestLogMiddleware:
         response["X-Request-ID"] = request.request_id
         if request.path.startswith("/api/v1/health/"):
             response["Cache-Control"] = "no-store"
+        elif request.path.startswith("/api/"):
+            # Include CSRF/Host/security denials that return before APIView.finalize_response.
+            response["Cache-Control"] = "private, no-store"
         logger.info(
             "http_request",
             extra={

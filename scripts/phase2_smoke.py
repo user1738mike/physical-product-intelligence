@@ -2,18 +2,23 @@
 
 import argparse
 import json
+import os
 import secrets
+import ssl
 from http.cookiejar import CookieJar
 from urllib.error import HTTPError
-from urllib.request import HTTPCookieProcessor, Request, build_opener
+from urllib.request import HTTPCookieProcessor, HTTPSHandler, Request, build_opener
 
-ORIGIN = "http://127.0.0.1:3000"
+ORIGIN = os.environ.get("PPI_SMOKE_ORIGIN", "http://127.0.0.1:3000")
 
 
 class Browser:
     def __init__(self):
         self.cookies = CookieJar()
-        self.http = build_opener(HTTPCookieProcessor(self.cookies))
+        self.http = build_opener(
+            HTTPCookieProcessor(self.cookies),
+            HTTPSHandler(context=ssl.create_default_context(cafile=os.environ.get("PPI_SMOKE_CA"))),
+        )
 
     def request(self, path, *, data=None, expected=200, method=None, csrf=True, origin=ORIGIN):
         method = method or ("GET" if data is None else "POST")
@@ -76,6 +81,8 @@ def main():
         assert profile == authenticated == browser.request("/api/v1/auth/me/")
         cookies = {cookie.name: cookie for cookie in browser.cookies}
         session = cookies["sessionid"]
+        if ORIGIN.startswith("https:"):
+            assert session.secure and cookies["csrftoken"].secure
         assert session.has_nonstandard_attr("HttpOnly")
         assert session.get_nonstandard_attr("SameSite") == "Lax"
         assert session.discard, "Session must expire on browser close"

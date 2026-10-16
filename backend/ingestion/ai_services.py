@@ -92,7 +92,7 @@ def start(actor, org_id, source_id, values):
             "request_sha256": fingerprint,
             "product_id": str(product.pk),
             "packaging_id": str(package.pk) if package else None,
-            "provider": "openai",
+            "provider": settings.AI_EXTRACTION_PROVIDER,
             "model": settings_model(),
             "schema_version": ai_schema.VERSION,
             "attempts": 0,

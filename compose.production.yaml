@@ -2,6 +2,19 @@
 # Do not combine with compose.yaml or use development .env credentials.
 name: ppi-production
 services:
+  migration:
+    profiles: [release]
+    image: ${PPI_BACKEND_IMAGE:?Set a reviewed immutable backend image reference}
+    env_file: ["${PPI_MIGRATION_ENV_FILE:?Set the separately protected migration configuration file}"]
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.production
+      INGESTION_STORAGE_ROOT: /var/lib/ppi/private
+      INGESTION_SCANNER: ingestion.scanning.clamd_scan
+    volumes: ["private_evidence:/var/lib/ppi/private", "release_backups:/var/lib/ppi/backups", "release_restores:/var/lib/ppi/restores"]
+    read_only: true
+    tmpfs: ["/tmp:size=64m,mode=1777"]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
   backend:
     image: ${PPI_BACKEND_IMAGE:?Set a reviewed immutable backend image reference}
     env_file: ["${PPI_PRODUCTION_ENV_FILE:?Set the protected server configuration file path}"]
@@ -54,3 +67,5 @@ services:
       retries: 3
 volumes:
   private_evidence:
+  release_backups:
+  release_restores:

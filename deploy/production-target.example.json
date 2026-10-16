@@ -1,0 +1,11 @@
+{
+  "environment": "production",
+  "target_host": "REPLACE_WITH_AUTHORIZED_LINUX_HOST",
+  "public_origin": "https://REPLACE_WITH_APPROVED_DOMAIN",
+  "runtime_env_file": "/etc/ppi/runtime.env",
+  "migration_env_file": "/etc/ppi/migration.env",
+  "database_ca_file": "/etc/ppi/database-ca.crt",
+  "repository": "user1738mike/physical-product-intelligence",
+  "commercial_mode": "REPLACE_WITH_APPROVED_PRIVATE_PILOT_OR_PAID_LAUNCH_DECISION",
+  "deployment_authorized": false
+}
