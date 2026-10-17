@@ -141,6 +141,31 @@ def require(org, feature):
     return item
 
 
+def integration_policy(org, *, new_work=False, webhooks=False):
+    """New versioned policy extensions never mutate historical plan definitions."""
+    from integrations.models import PlanPolicy
+
+    lock(org)
+    item = current(org)
+    if item is None and not new_work:
+        item = (
+            Assignment.objects.filter(organization=org, ends_at__lte=timezone.now())
+            .order_by("-ends_at")
+            .first()
+        )
+    policy = PlanPolicy.objects.filter(plan=item.plan).first() if item else None
+    if (
+        not item
+        or item.status != "active"
+        or not policy
+        or not getattr(policy, "webhooks_enabled" if webhooks else "api_enabled")
+    ):
+        raise Restricted(
+            "feature_unavailable", "Your current plan does not include this integration action."
+        )
+    return policy
+
+
 def totals(org, meter, start):
     used = (
         Usage.objects.filter(organization=org, meter=meter, period_start=start).aggregate(
@@ -430,6 +455,9 @@ def summary(actor, org_id):
     if not org.is_active:
         status = "suspended"
     plan = (item or latest).plan if item or latest else None
+    from integrations.models import PlanPolicy
+
+    integration = PlanPolicy.objects.filter(plan=plan).first() if plan else None
     meters = {}
     for meter in METERS:
         used, reserved = (
@@ -451,7 +479,11 @@ def summary(actor, org_id):
             "code": plan.code,
             "version": plan.version,
             "name": plan.name,
-            "features": {key: getattr(plan, key) for key in FEATURES},
+            "features": {
+                **{key: getattr(plan, key) for key in FEATURES},
+                "integration_api": bool(integration and integration.api_enabled),
+                "outbound_webhooks": bool(integration and integration.webhooks_enabled),
+            },
         }
         if plan
         else None,

@@ -1,5 +1,7 @@
 # System architecture
 
+Current Phase 10 increment: `commercial`, `billing` and `integrations` extend the modular monolith. Billing has an isolated offline simulator only. Customer integrations use separate read-only bearer routes, database-backed credential/organization admission and issuer membership checks, frozen snapshot exports, a transactional assessment outbox and a bounded owner-role dispatcher. Dedicated versioned signing roots and allowlisted/pinned HTTPS egress remain production configuration requirements. See [integration API](integrations-api.md), [delivery design](webhook-delivery.md) and phase reports for actual evidence. Historical deferrals below are superseded only within these implemented boundaries; no queue platform, real gateway or remote release is implied.
+
 ## Modular monolith
 Next.js renders the public foundation page and account/organization context screen. Django/DRF owns the API and application services; PostgreSQL is the authoritative database. Deploy frontend and API behind one TLS ingress using /api/v1 routing to avoid broad CORS. Compose is local development infrastructure, not a production deployment recipe. No microservices or Kubernetes are required.
 

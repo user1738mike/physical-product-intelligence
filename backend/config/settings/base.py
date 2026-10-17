@@ -23,6 +23,7 @@ INSTALLED_APPS = [
     "compatibility",
     "commercial",
     "billing",
+    "integrations",
 ]
 MIDDLEWARE = [
     "operations.middleware.RequestLogMiddleware",
@@ -88,6 +89,13 @@ STORAGES = {
 INGESTION_ALLOW_UNSCANNED = False
 AI_EXTRACTION_ENABLED = os.environ.get("AI_EXTRACTION_ENABLED", "false").lower() == "true"
 BILLING_SIMULATOR_ENABLED = False
+INTEGRATION_OUTBOUND_ENABLED = False
+INTEGRATION_ALLOWED_HOSTS = []
+INTEGRATION_SIGNING_KEYS = {}
+INTEGRATION_SIGNING_CURRENT = "v1"
+INTEGRATION_KEY_RATE = 60
+INTEGRATION_ORG_RATE = 180
+INTEGRATION_TEST_TRANSPORT = False
 AI_EXTRACTION_PROVIDER = os.environ.get("AI_EXTRACTION_PROVIDER", "openai")
 AI_EXTRACTION_MODEL = os.environ.get("AI_EXTRACTION_MODEL", "").strip()
 AI_EXTRACTION_MAX_CONCURRENT = max(

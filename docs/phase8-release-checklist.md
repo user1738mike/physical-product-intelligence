@@ -1,5 +1,14 @@
 # Phase 8 release checklist
 
+## Phase 10 candidate gates
+
+- Rebuild/identify the current integration-enabled artifacts; do not apply earlier scan, hosted CI or browser evidence to changed images.
+- Verify credential issuer revocation, finite plan policy, shared admission and immutable export fidelity on the exact target.
+- Provision a dedicated versioned signing root securely only after approval; approve exact destination hosts and isolated egress/DNS/firewall controls. Test real outbound TLS and receiver coordination on approved staging.
+- Verify runtime integration grants and append-only protections, restricted dispatcher owner connection, bounded cadence, retention/legal hold and backup/restore under target roles.
+- Retain valid Grype database/scans, exact-SHA hosted CI, approved staging host/domain/region/budget, payment-provider verification and live collection gates. Local loopback delivery is not real customer destination acceptance.
+- Use [Phase 10 actual results](phase10-completion-report.md) and [delivery operations](webhook-delivery.md); no production deployment is approved.
+
 ## Phase 9B candidate
 
 - [ ] Publish only after separate authorization and obtain passing exact-SHA hosted CI.

@@ -98,4 +98,22 @@ class Command(BaseCommand):
                         sql.Identifier("billing_" + table), sql.Identifier(role)
                     )
                 )
+            for table in ("event", "planpolicy", "deliveryattempt"):
+                cursor.execute(
+                    sql.SQL("REVOKE UPDATE, DELETE ON {} FROM {}").format(
+                        sql.Identifier("integrations_" + table), sql.Identifier(role)
+                    )
+                )
+            for table in ("planpolicy", "deliveryattempt"):
+                cursor.execute(
+                    sql.SQL("REVOKE INSERT ON {} FROM {}").format(
+                        sql.Identifier("integrations_" + table), sql.Identifier(role)
+                    )
+                )
+            for table in ("credential", "destination", "delivery"):
+                cursor.execute(
+                    sql.SQL("REVOKE DELETE ON {} FROM {}").format(
+                        sql.Identifier("integrations_" + table), sql.Identifier(role)
+                    )
+                )
         self.stdout.write("rehearsal_runtime_grants_current")

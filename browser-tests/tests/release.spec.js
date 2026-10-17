@@ -36,6 +36,26 @@ async function authorized(page, path, method = "GET", data) {
     { path, method, data },
   );
 }
+async function selectOrganization(page, organizationId) {
+  for (let pageNumber = 0; pageNumber < 25; pageNumber++) {
+    const found = await page
+      .getByLabel("Active organization")
+      .locator("option")
+      .evaluateAll(
+        (options, id) => options.some((option) => option.value === id),
+        organizationId,
+      );
+    if (found) break;
+    const more = page.getByRole("button", {
+      name: "Load more organizations",
+      exact: true,
+    });
+    await expect(more).toBeVisible();
+    await more.click();
+    await expect(page.getByLabel("Active organization")).toBeEnabled();
+  }
+  await page.getByLabel("Active organization").selectOption(organizationId);
+}
 async function createOrg(page, code) {
   await page.goto("/account");
   await page
@@ -76,7 +96,7 @@ test("real HTTPS browser release journey with reviewed recorded extraction", asy
   );
   const org = await createOrg(page, "a"),
     second = await createOrg(page, "b");
-  await page.getByLabel("Active organization").selectOption(org);
+  await selectOrganization(page, org);
   await page
     .getByRole("link", { name: "Open product catalog", exact: true })
     .click();
@@ -566,6 +586,98 @@ test("real HTTPS browser release journey with reviewed recorded extraction", asy
     ).toBeVisible();
   }
   mark("billing_delayed_verified_confirmation_history_download_switching");
+  if (fixture.integrations) {
+    const integrationRoot = `/organizations/${fixture.integrations.organization_id}/integrations`;
+    await page.goto(integrationRoot);
+    await expect(
+      page.getByRole("heading", { name: "Integrations", exact: true }),
+    ).toBeVisible();
+    const credentials = form(page, "Credential form");
+    await credentials
+      .getByLabel("Name", { exact: true })
+      .fill("Warehouse reader");
+    await credentials
+      .getByRole("button", { name: "Create credential", exact: true })
+      .click();
+    await expect(
+      page.getByLabel("One-time secret", { exact: true }),
+    ).toBeVisible();
+    // Never print, snapshot, screenshot or persist the transient secret.
+    await page
+      .getByRole("button", { name: "I have saved the secret", exact: true })
+      .click();
+    await expect(
+      page.getByLabel("One-time secret", { exact: true }),
+    ).toHaveCount(0);
+    await page
+      .getByRole("button", { name: "Rotate Warehouse reader", exact: true })
+      .click();
+    await credentials
+      .getByRole("button", { name: "Rotate credential", exact: true })
+      .click();
+    await expect(
+      page.getByLabel("One-time secret", { exact: true }),
+    ).toBeVisible();
+    await page
+      .getByRole("button", { name: "I have saved the secret", exact: true })
+      .click();
+    await page
+      .getByRole("button", { name: "Revoke Warehouse reader", exact: true })
+      .click();
+    await expect(
+      page.getByRole("button", {
+        name: "Revoke Warehouse reader",
+        exact: true,
+      }),
+    ).toHaveCount(0);
+    const destination = form(page, "Destination form");
+    await destination
+      .getByLabel("HTTPS destination", { exact: true })
+      .fill("https://warehouse.example/events");
+    await destination
+      .getByRole("button", { name: "Add destination", exact: true })
+      .click();
+    await expect(
+      page.getByLabel("One-time secret", { exact: true }),
+    ).toBeVisible();
+    await page
+      .getByRole("button", { name: "I have saved the secret", exact: true })
+      .click();
+    await page
+      .getByRole("button", { name: "Rotate signing secret", exact: true })
+      .click();
+    await expect(
+      page.getByLabel("One-time secret", { exact: true }),
+    ).toBeVisible();
+    await page
+      .getByRole("button", { name: "I have saved the secret", exact: true })
+      .click();
+    await page
+      .getByRole("button", { name: "Disable destination", exact: true })
+      .click();
+    await expect(
+      page.getByRole("button", { name: "Disable destination", exact: true }),
+    ).toBeDisabled();
+    await page
+      .getByRole("button", { name: "Refresh integrations", exact: true })
+      .click();
+    await expect(
+      page.getByText("Disabled · revision 2 · signing version 2", {
+        exact: true,
+      }),
+    ).toBeVisible();
+    await page.screenshot({
+      path: "/results/integrations-management.png",
+      fullPage: true,
+    });
+    await page.goto(root + "/integrations");
+    await expect(
+      page.getByText("No API credentials yet.", { exact: true }),
+    ).toBeVisible();
+    mark(
+      "integration_reveal_once_rotation_revocation_destination_disable_switching",
+    );
+  }
   // Existing API-only membership management is setup, never a substitute for the UI workflows.
   const membership = await authorized(page, api + "members/", "POST", {
     username: fixture.outsider.username,
@@ -590,6 +702,53 @@ test("real HTTPS browser release journey with reviewed recorded extraction", asy
     ).toBeVisible();
   }
   await outsider.goto(root + "/billing");
+  if (fixture.integrations) {
+    await outsider.goto(
+      `/organizations/${fixture.integrations.organization_id}/integrations`,
+    );
+    await expect(
+      outsider.getByRole("heading", { name: "Integrations", exact: true }),
+    ).toBeVisible();
+    await expect(
+      outsider.getByText("No API credentials yet.", { exact: true }),
+    ).toHaveCount(0);
+    const adminCredentialForm = form(outsider, "Credential form");
+    await adminCredentialForm
+      .getByLabel("Name", { exact: true })
+      .fill("Admin warehouse reader");
+    await adminCredentialForm
+      .getByRole("button", { name: "Create credential", exact: true })
+      .click();
+    await expect(
+      outsider.getByLabel("One-time secret", { exact: true }),
+    ).toBeVisible();
+    await outsider
+      .getByRole("button", { name: "I have saved the secret", exact: true })
+      .click();
+    await outsider
+      .getByRole("button", {
+        name: "Revoke Admin warehouse reader",
+        exact: true,
+      })
+      .click();
+    await expect(
+      outsider.getByRole("button", {
+        name: "Revoke Admin warehouse reader",
+        exact: true,
+      }),
+    ).toHaveCount(0);
+    await outsider.goto(root + "/integrations");
+    await expect(
+      outsider.getByText(
+        "Only organization owners and administrators can manage integrations.",
+        { exact: true },
+      ),
+    ).toBeVisible();
+    expect((await authorized(outsider, api + "integrations/")).status).toBe(
+      403,
+    );
+    await outsider.goto(root + "/billing");
+  }
   await expect(
     outsider.getByRole("alert").filter({ hasText: "Only organization owners" }),
   ).toContainText("Only organization owners and administrators");
@@ -665,6 +824,7 @@ test("real HTTPS browser release journey with reviewed recorded extraction", asy
   await outsider.goto(root + "/products/" + product);
   expect((await authorized(outsider, api + "commercial/")).status).toBe(404);
   expect((await authorized(outsider, api + "billing/")).status).toBe(404);
+  expect((await authorized(outsider, api + "integrations/")).status).toBe(404);
   await expect(
     outsider
       .getByRole("alert")
@@ -675,7 +835,7 @@ test("real HTTPS browser release journey with reviewed recorded extraction", asy
   ).toBe(404);
   await outsiderContext.close();
   await page.goto("/account");
-  await page.getByLabel("Active organization").selectOption(second);
+  await selectOrganization(page, second);
   await page
     .getByRole("link", { name: "Open product catalog", exact: true })
     .click();

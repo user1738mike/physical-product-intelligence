@@ -17,6 +17,7 @@ def main():
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--commercial-fixtures", action="store_true")
     parser.add_argument("--billing-fixtures", action="store_true")
+    parser.add_argument("--integration-fixtures", action="store_true")
     args = parser.parse_args()
     folder, output = args.directory.resolve(), args.output.resolve()
     if not all(p.is_relative_to(ROOT / "artifacts") for p in (folder, output)):
@@ -37,6 +38,26 @@ def main():
                     "python",
                     "manage.py",
                     "prepare_commercial_acceptance",
+                    "--owner",
+                    fixture["owner"]["username"],
+                    "--member",
+                    fixture["outsider"]["username"],
+                ]
+            )
+        )
+    if args.integration_fixtures:
+        fixture["integrations"] = json.loads(
+            run(
+                compose(folder, manifest)
+                + [
+                    "run",
+                    "--rm",
+                    "--no-deps",
+                    "-T",
+                    "migration",
+                    "python",
+                    "manage.py",
+                    "prepare_integration_acceptance",
                     "--owner",
                     fixture["owner"]["username"],
                     "--member",

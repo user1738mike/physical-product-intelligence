@@ -9,6 +9,26 @@ afterEach(() => {
 });
 
 describe("same-origin API transport", () => {
+  it("forwards a bounded integration bearer only on dedicated read routes", async () => {
+    const fetch = vi.fn().mockResolvedValue(Response.json({ results: [] }));
+    vi.stubGlobal("fetch", fetch);
+    const token = "Bearer ppi_i_" + "a".repeat(32) + "." + "b".repeat(43);
+    await GET(
+      new Request("http://localhost:3000/api/v1/integration/products/", {
+        headers: { Authorization: token },
+      }),
+      context(["integration", "products"]),
+    );
+    expect(fetch.mock.calls[0][1].headers.get("authorization")).toBe(token);
+    await POST(
+      new Request("http://localhost:3000/api/v1/integration/products/", {
+        method: "POST",
+        headers: { Authorization: token },
+      }),
+      context(["integration", "products"]),
+    );
+    expect(fetch.mock.calls[1][1].headers.has("authorization")).toBe(false);
+  });
   it("forwards cookies, CSRF and origin only to the fixed backend with canonical slashes", async () => {
     vi.stubEnv("API_BACKEND_ORIGIN", "http://backend:8000");
     const fetch = vi

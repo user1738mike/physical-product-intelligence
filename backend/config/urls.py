@@ -1,6 +1,7 @@
 from django.contrib import admin
 from django.urls import include, path
 from drf_spectacular.views import SpectacularAPIView
+from integrations.views import management_urls
 
 from accounts.views import CsrfView, LoginView, LogoutView, MeView, RegisterView
 from billing.views import SyntheticInbox
@@ -17,6 +18,8 @@ from organizations.views import (
 )
 
 urlpatterns = [
+    path("api/v1/integration/", include("integrations.views")),
+    path("api/v1/organizations/<uuid:organization_id>/integrations/", include(management_urls)),
     path("api/v1/billing/synthetic-inbox/", SyntheticInbox.as_view()),
     path("api/v1/organizations/<uuid:organization_id>/billing/", include("billing.views")),
     path("api/v1/organizations/<uuid:organization_id>/commercial/", include("commercial.views")),

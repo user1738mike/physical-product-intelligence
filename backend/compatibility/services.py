@@ -380,6 +380,9 @@ def assess(actor, org_id, data):
     )
     event(actor, org, "assessment.created", assessment)
     commercial.finalize(org, "assessments", values["request_id"], actor)
+    from integrations.services import assessment_committed
+
+    assessment_committed(assessment)
     return assessment
 
 

@@ -99,6 +99,13 @@ export function TenantFrame({
           </Link>
           <Link href="/account">Account</Link>
           {membership && membership.role !== "member" && (
+            <Link
+              href={`/organizations/${encodeURIComponent(org)}/integrations`}
+            >
+              Integrations
+            </Link>
+          )}
+          {membership && membership.role !== "member" && (
             <Link href={`/organizations/${encodeURIComponent(org)}/commercial`}>
               Plan and usage
             </Link>
