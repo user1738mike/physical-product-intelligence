@@ -3,7 +3,42 @@
 import argparse
 import json
 
-from release import ROOT, compose, run, source_identity, write_json
+from release import ROOT, compose, exclusive, run, source_identity, write_json
+
+
+def demonstrate(command, supervised):
+    running = (
+        supervised
+        and "processors" in run(command + ["ps", "--status", "running", "--services"]).splitlines()
+    )
+    try:
+        # The guarded demonstration owns a loopback sender for reserved.example;
+        # the normal dispatcher must not race its deliberately local claim.
+        if running:
+            run(command + ["stop", "processors"], timeout=300)
+        return json.loads(
+            run(
+                command
+                + [
+                    "run",
+                    "--rm",
+                    "--no-deps",
+                    "-T",
+                    "migration",
+                    "python",
+                    "manage.py",
+                    "demonstrate_integrations",
+                    "--ca",
+                    "/certs/ca.crt",
+                ],
+                timeout=180,
+            ).splitlines()[-1]
+        )
+    finally:
+        if running:
+            run(
+                command + ["up", "-d", "--wait", "--wait-timeout", "120", "processors"], timeout=180
+            )
 
 
 def main():
@@ -17,24 +52,8 @@ def main():
     manifest = json.loads((folder / "release.json").read_text())
     command = compose(folder, manifest)
     output.mkdir(parents=True, exist_ok=False)
-    result = json.loads(
-        run(
-            command
-            + [
-                "run",
-                "--rm",
-                "--no-deps",
-                "-T",
-                "migration",
-                "python",
-                "manage.py",
-                "demonstrate_integrations",
-                "--ca",
-                "/certs/ca.crt",
-            ],
-            timeout=180,
-        ).splitlines()[-1]
-    )
+    with exclusive(folder):
+        result = demonstrate(command, manifest.get("processors_enabled", False))
     write_json(
         output / "receipt.json",
         {"source": source_identity(), "images": manifest["images"], "demonstration": result},

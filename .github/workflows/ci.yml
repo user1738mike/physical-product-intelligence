@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-24.04
     services:
       postgres:
-        image: postgres:17.11-bookworm
+        image: postgres:17.11-trixie@sha256:2d2b8998d31037bf721cfdf764d76ba74171b4fab3431b7f72c27c56ddbdf9e3
         env:
           POSTGRES_DB: ppi
           POSTGRES_USER: ppi
@@ -117,6 +117,7 @@ jobs:
         if: always()
         run: docker compose down
   backend-images:
+    name: backend-images-${{ matrix.ai }}
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     strategy:
@@ -142,6 +143,7 @@ jobs:
             /tmp/backend-image-id.txt
           if-no-files-found: warn
   infrastructure-security:
+    name: infrastructure-security-${{ matrix.name }}
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     strategy:
@@ -149,13 +151,17 @@ jobs:
       matrix:
         include:
           - name: postgres
-            image: postgres@sha256:3645570cccdfa447589da9f57dd740faa29b30938e861289a5574b6ca6b03826
+            image: postgres@sha256:2d2b8998d31037bf721cfdf764d76ba74171b4fab3431b7f72c27c56ddbdf9e3
           - name: ingress
-            image: nginx@sha256:d5792f71a9496b833bc08ea834a758c46e2b6a6306c10f4be926f38a656cdc1c
+            image: ppi-release-ingress
           - name: scanner
             image: clamav/clamav@sha256:638d90201ee7ee6a82d249a2fc23b132e578673b5f1f2766852b127676ca1ef6
     steps:
-      - run: docker pull '${{ matrix.image }}'
+      - uses: actions/checkout@v4
+      - if: matrix.name != 'ingress'
+        run: docker pull '${{ matrix.image }}'
+      - if: matrix.name == 'ingress'
+        run: docker build -f deploy/ingress.Dockerfile -t ppi-release-ingress deploy
       - name: Scan exact infrastructure artifact
         run: |
           docker save -o /tmp/image.tar '${{ matrix.image }}'
@@ -179,12 +185,12 @@ jobs:
           docker build -t physical-product-intelligence-backend backend
           docker build --target production -t physical-product-intelligence-frontend frontend
           docker build -t ppi-phase8b-browser browser-tests
-          docker pull postgres:17.11-bookworm
-          docker pull nginx:1.30.4
+          docker pull postgres:17.11-trixie@sha256:2d2b8998d31037bf721cfdf764d76ba74171b4fab3431b7f72c27c56ddbdf9e3
+          docker build -f deploy/ingress.Dockerfile -t ppi-release-ingress deploy
           docker pull clamav/clamav:stable
       - name: Create isolated HTTPS rehearsal
         run: |
-          python scripts/release.py prepare --directory artifacts/browser-ci --https-port 18443 --processors
+          python scripts/release.py prepare --directory artifacts/browser-ci --https-port 18443 --processors --ingress-image ppi-release-ingress
           python scripts/release.py start --directory artifacts/browser-ci
       - name: Create synthetic login context using real session and business APIs
         env:
@@ -196,7 +202,7 @@ jobs:
           python scripts/phase2_smoke.py --allow-create-test-data
           python scripts/phase3_smoke.py --allow-create-test-data
       - name: Real browser with private test-only CA trust and sandbox
-        run: python scripts/browser_acceptance.py --directory artifacts/browser-ci --output artifacts/browser-results --commercial-fixtures --billing-fixtures --integration-fixtures --recovery-fixtures
+        run: python scripts/browser_acceptance.py --directory artifacts/browser-ci --output artifacts/browser-results --commercial-fixtures --billing-fixtures --integration-fixtures --recovery-fixtures --retention-fixtures
       - name: Signed local integration and revocation demonstration
         run: python scripts/integration_demo.py --directory artifacts/browser-ci --output artifacts/integration-demo-ci
       - uses: actions/upload-artifact@v4
@@ -212,5 +218,6 @@ jobs:
             artifacts/browser-results/billing-settled.png
             artifacts/browser-results/billing-processing.json
             artifacts/browser-results/integrations-management.png
+            artifacts/browser-results/source-retention.png
             artifacts/integration-demo-ci/receipt.json
           if-no-files-found: warn
