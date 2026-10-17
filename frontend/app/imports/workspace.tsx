@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { AIExtraction, AICandidateProvenance } from "./ai";
+import { SourceRemoval } from "./retention";
 import { useEffect, useState } from "react";
 import { type Page } from "../../lib/api";
 import {
@@ -158,7 +159,11 @@ function Detail({ org, id }: { org: string; id: string }) {
     <>
       <Link href={importsPath(org)}>All imports</Link>
       <h1>{job.display_name}</h1>
-      <AIExtraction org={org} job={job} reviewer={reviewer} reload={reload} />
+      {!["claimed", "needs_review", "removed"].includes(
+        job.source_file_state ?? "",
+      ) && (
+        <AIExtraction org={org} job={job} reviewer={reviewer} reload={reload} />
+      )}
       <section className="catalog-panel">
         <h2>Import status: {job.status.replaceAll("_", " ")}</h2>
         <p>
@@ -190,9 +195,13 @@ function Detail({ org, id }: { org: string; id: string }) {
           </p>
         ))}
         <p>
-          <a href={`${importsApiPath(org)}${id}/file/`}>
-            Download private source
-          </a>{" "}
+          {!["claimed", "needs_review", "removed"].includes(
+            job.source_file_state ?? "",
+          ) && (
+            <a href={`${importsApiPath(org)}${id}/file/`}>
+              Download private source
+            </a>
+          )}{" "}
           ·{" "}
           <a href={`${importsApiPath(org)}${id}/errors/`}>
             Download authorized error report
@@ -209,152 +218,162 @@ function Detail({ org, id }: { org: string; id: string }) {
           </MutationForm>
         )}
       </section>
-      {job.mode !== "ai" && ["uploaded", "failed"].includes(job.status) && (
-        <section className="catalog-panel">
-          <h2>1. Validate and preview</h2>
-          <MutationForm
-            label="Validate source"
-            action={(data) =>
-              action("validate", {
-                expected_version: job.version,
-                sheet: text(data, "sheet"),
-                header_row: Number(text(data, "header_row")),
-                delimiter: text(data, "delimiter"),
-              })
-            }
-          >
-            {job.format === "xlsx" && (
-              <>
-                <Field
-                  label="Sheet name (blank selects first sheet)"
-                  name="sheet"
-                  list="sheet-options"
-                />
-                <datalist id="sheet-options">
-                  {job.preview.sheets?.map((s) => (
-                    <option key={s}>{s}</option>
-                  ))}
-                </datalist>
-              </>
-            )}
-            {["xlsx", "csv"].includes(job.format) && (
-              <Field
-                label="Header row"
-                name="header_row"
-                type="number"
-                min={1}
-                max={20}
-                defaultValue="1"
-                required
-              />
-            )}
-            {!["xlsx", "csv"].includes(job.format) && (
-              <input type="hidden" name="header_row" value="1" />
-            )}
-            {job.format === "csv" && (
-              <label className="field">
-                Delimiter
-                <select name="delimiter">
-                  <option value="">Detect safely</option>
-                  <option value=",">Comma</option>
-                  <option value=";">Semicolon</option>
-                  <option value={"\t"}>Tab</option>
-                  <option value="|">Pipe</option>
-                </select>
-              </label>
-            )}
-          </MutationForm>
-          {job.preview.sample && (
-            <div className="table-scroll">
-              <table>
-                <caption>
-                  Source preview · {job.preview.row_count} nonempty rows
-                </caption>
-                <thead>
-                  <tr>
-                    <th scope="col">Location</th>
-                    {job.preview.headers?.map((h) => (
-                      <th scope="col" key={h}>
-                        {h}
-                      </th>
+      <SourceRemoval
+        org={org}
+        job={job}
+        owner={membership.role === "owner"}
+        reload={reload}
+      />
+      {job.mode !== "ai" &&
+        ["uploaded", "failed"].includes(job.status) &&
+        !["claimed", "needs_review", "removed"].includes(
+          job.source_file_state ?? "",
+        ) && (
+          <section className="catalog-panel">
+            <h2>1. Validate and preview</h2>
+            <MutationForm
+              label="Validate source"
+              action={(data) =>
+                action("validate", {
+                  expected_version: job.version,
+                  sheet: text(data, "sheet"),
+                  header_row: Number(text(data, "header_row")),
+                  delimiter: text(data, "delimiter"),
+                })
+              }
+            >
+              {job.format === "xlsx" && (
+                <>
+                  <Field
+                    label="Sheet name (blank selects first sheet)"
+                    name="sheet"
+                    list="sheet-options"
+                  />
+                  <datalist id="sheet-options">
+                    {job.preview.sheets?.map((s) => (
+                      <option key={s}>{s}</option>
                     ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {job.preview.sample.map((row, i) => (
-                    <tr key={i}>
-                      <th scope="row">{row.location}</th>
+                  </datalist>
+                </>
+              )}
+              {["xlsx", "csv"].includes(job.format) && (
+                <Field
+                  label="Header row"
+                  name="header_row"
+                  type="number"
+                  min={1}
+                  max={20}
+                  defaultValue="1"
+                  required
+                />
+              )}
+              {!["xlsx", "csv"].includes(job.format) && (
+                <input type="hidden" name="header_row" value="1" />
+              )}
+              {job.format === "csv" && (
+                <label className="field">
+                  Delimiter
+                  <select name="delimiter">
+                    <option value="">Detect safely</option>
+                    <option value=",">Comma</option>
+                    <option value=";">Semicolon</option>
+                    <option value={"\t"}>Tab</option>
+                    <option value="|">Pipe</option>
+                  </select>
+                </label>
+              )}
+            </MutationForm>
+            {job.preview.sample && (
+              <div className="table-scroll">
+                <table>
+                  <caption>
+                    Source preview · {job.preview.row_count} nonempty rows
+                  </caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">Location</th>
                       {job.preview.headers?.map((h) => (
-                        <td key={h}>{row.cells[h] || "Unknown"}</td>
+                        <th scope="col" key={h}>
+                          {h}
+                        </th>
                       ))}
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-          {job.preview.headers && (
-            <>
-              <h2>2. Confirm field mapping</h2>
-              <p>
-                Suggestions require confirmation. Leave unused columns unmapped.
-                Units must be explicit in the source.
-              </p>
-              <MutationForm
-                key={job.version}
-                label="Save field mapping"
-                action={(data) =>
-                  action("mapping", {
-                    expected_version: job.version,
-                    mapping: Object.fromEntries(
-                      fields
-                        .map((f) => [f, text(data, f)])
-                        .filter(([, v]) => v),
-                    ),
-                  })
-                }
-              >
-                <div className="form-grid">
-                  {fields.map((field) => (
-                    <label className="field" key={field}>
-                      {field.replaceAll("_", " ")}
-                      <select
-                        name={field}
-                        required={field === "sku"}
-                        defaultValue={
-                          job.mapping[field] ??
-                          job.preview.suggestions?.[field] ??
-                          ""
-                        }
-                      >
-                        <option value="">Not mapped</option>
-                        {job.preview.headers?.map((header) => (
-                          <option key={header} value={header}>
-                            {header}
-                          </option>
+                  </thead>
+                  <tbody>
+                    {job.preview.sample.map((row, i) => (
+                      <tr key={i}>
+                        <th scope="row">{row.location}</th>
+                        {job.preview.headers?.map((h) => (
+                          <td key={h}>{row.cells[h] || "Unknown"}</td>
                         ))}
-                      </select>
-                    </label>
-                  ))}
-                </div>
-              </MutationForm>
-              {Object.keys(job.mapping).length > 0 && (
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            {job.preview.headers && (
+              <>
+                <h2>2. Confirm field mapping</h2>
+                <p>
+                  Suggestions require confirmation. Leave unused columns
+                  unmapped. Units must be explicit in the source.
+                </p>
                 <MutationForm
-                  label="Process candidates"
-                  action={() =>
-                    action("process", { expected_version: job.version })
+                  key={job.version}
+                  label="Save field mapping"
+                  action={(data) =>
+                    action("mapping", {
+                      expected_version: job.version,
+                      mapping: Object.fromEntries(
+                        fields
+                          .map((f) => [f, text(data, f)])
+                          .filter(([, v]) => v),
+                      ),
+                    })
                   }
                 >
-                  <p>
-                    Parsing creates review candidates only. No catalog values
-                    will change.
-                  </p>
+                  <div className="form-grid">
+                    {fields.map((field) => (
+                      <label className="field" key={field}>
+                        {field.replaceAll("_", " ")}
+                        <select
+                          name={field}
+                          required={field === "sku"}
+                          defaultValue={
+                            job.mapping[field] ??
+                            job.preview.suggestions?.[field] ??
+                            ""
+                          }
+                        >
+                          <option value="">Not mapped</option>
+                          {job.preview.headers?.map((header) => (
+                            <option key={header} value={header}>
+                              {header}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                    ))}
+                  </div>
                 </MutationForm>
-              )}
-            </>
-          )}
-        </section>
-      )}
+                {Object.keys(job.mapping).length > 0 && (
+                  <MutationForm
+                    label="Process candidates"
+                    action={() =>
+                      action("process", { expected_version: job.version })
+                    }
+                  >
+                    <p>
+                      Parsing creates review candidates only. No catalog values
+                      will change.
+                    </p>
+                  </MutationForm>
+                )}
+              </>
+            )}
+          </section>
+        )}
       {(job.status === "awaiting_review" || terminal) && (
         <>
           <Rows

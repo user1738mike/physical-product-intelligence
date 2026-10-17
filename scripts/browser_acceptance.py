@@ -19,6 +19,7 @@ def main():
     parser.add_argument("--billing-fixtures", action="store_true")
     parser.add_argument("--integration-fixtures", action="store_true")
     parser.add_argument("--recovery-fixtures", action="store_true")
+    parser.add_argument("--retention-fixtures", action="store_true")
     args = parser.parse_args()
     folder, output = args.directory.resolve(), args.output.resolve()
     if not all(p.is_relative_to(ROOT / "artifacts") for p in (folder, output)):
@@ -26,6 +27,24 @@ def main():
     manifest = json.loads((folder / "release.json").read_text(encoding="utf-8"))
     compose(folder, manifest)  # Enforces generated project/database identity before execution.
     fixture = json.loads((folder / "journey.json").read_text(encoding="utf-8"))
+    if args.retention_fixtures:
+        fixture["retention"] = json.loads(
+            run(
+                compose(folder, manifest)
+                + [
+                    "run",
+                    "--rm",
+                    "--no-deps",
+                    "-T",
+                    "migration",
+                    "python",
+                    "manage.py",
+                    "prepare_retention_acceptance",
+                    "--owner",
+                    fixture["owner"]["username"],
+                ]
+            )
+        )
     if args.recovery_fixtures:
         fixture["recovery"] = json.loads(
             run(

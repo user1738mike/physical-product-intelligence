@@ -1,10 +1,12 @@
 from django.urls import path
 
-from . import ai_views, views
+from . import ai_views, retention_views, views
 
 urlpatterns = [
     path("", views.JobsView.as_view()),
     path("limits/", views.LimitsView.as_view()),
+    path("retention-policy/", retention_views.PolicyView.as_view()),
+    path("<uuid:job_id>/source-removal/", retention_views.RemovalView.as_view()),
     path("ai-capabilities/", ai_views.CapabilitiesView.as_view()),
     path("<uuid:job_id>/extractions/", ai_views.ExtractionStartView.as_view()),
     path("<uuid:job_id>/ai-process/", ai_views.AIProcessView.as_view()),

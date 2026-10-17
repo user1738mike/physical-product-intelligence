@@ -9,6 +9,7 @@ from integrations.models import Delivery
 
 from commercial import services as commercial
 from ingestion.models import ImportJob
+from ingestion.retention import cycle as retention_cycle
 from operations.models import RateBucket
 
 
@@ -63,4 +64,7 @@ def cycle(actor, *, limit=20):
     )
     operator(actor)
     result["counters"] = RateBucket.objects.filter(pk__in=ids, expires_at__lt=now).delete()[0]
+    removed = retention_cycle(actor, limit=limit)
+    result["removed"] = removed["removed"]
+    result["failures"] += removed["failures"]
     return result

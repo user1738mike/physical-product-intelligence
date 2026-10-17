@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { RetentionSettings } from "../imports/retention";
 import {
   api,
   ApiError,
@@ -133,6 +134,7 @@ function Settings({ refresh }: { refresh: () => void }) {
         </MutationForm>
       )}
       <h2>Members</h2>
+      <RetentionSettings org={org} owner={owner} />
       {!members ? (
         <p role="status">Loading members…</p>
       ) : (

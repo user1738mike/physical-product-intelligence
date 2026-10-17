@@ -22,6 +22,7 @@ export const importsPath = (org: string) =>
 export const importsApiPath = (org: string) =>
   `/api/v1/organizations/${encodeURIComponent(org)}/imports/`;
 export type ImportJob = {
+  source_file_state?: string;
   mode?: "deterministic" | "ai";
   source_job_id?: string | null;
   extraction?: {

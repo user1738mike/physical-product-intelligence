@@ -82,6 +82,14 @@ def store_upload(upload, organization):
 
 
 def read_upload(job):
+    from .retention import check_readable
+
+    check_readable(job)
+    return read_stored_bytes(job)
+
+
+def read_stored_bytes(job):
+    """Integrity primitive; only trusted quiesced backup/restore bypasses lifecycle checks."""
     if job.scan_status != "clean" and not settings.INGESTION_ALLOW_UNSCANNED:
         raise PermissionDenied("This source has not passed malware inspection.")
     try:

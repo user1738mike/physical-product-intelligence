@@ -79,6 +79,17 @@ class CreationInput(StrictSerializer):
 
 class JobSerializer(serializers.ModelSerializer):
     duplicate_upload_ids = serializers.SerializerMethodField()
+    source_file_state = serializers.SerializerMethodField()
+
+    def get_source_file_state(self, obj) -> str:
+        from .models import SourceRemoval
+
+        value = (
+            SourceRemoval.objects.filter(source_id=obj.source_job_id or obj.pk)
+            .exclude(state="cancelled")
+            .first()
+        )
+        return value.state if value else "retained"
 
     def get_duplicate_upload_ids(self, obj) -> list[str]:
         return [
@@ -92,6 +103,7 @@ class JobSerializer(serializers.ModelSerializer):
         model = ImportJob
         fields = [
             "id",
+            "source_file_state",
             "organization_id",
             "created_by_id",
             "created_at",

@@ -80,9 +80,9 @@ def upload(actor, organization_id, file):
                     "At most 20 unfinished imports are permitted per organization."
                 )
             used = (
-                ImportJob.objects.filter(organization=org, mode="deterministic").aggregate(
-                    total=Sum("size")
-                )["total"]
+                ImportJob.objects.filter(organization=org, mode="deterministic")
+                .exclude(removals__state="removed")
+                .aggregate(total=Sum("size"))["total"]
                 or 0
             )
             if used + file.size > settings.INGESTION_LIMITS["storage_bytes"]:

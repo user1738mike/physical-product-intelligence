@@ -1031,6 +1031,92 @@ test("real HTTPS browser release journey with reviewed recorded extraction", asy
     ).toBe(400);
     mark("operator_issued_recovery_password_change_single_use_logout");
   }
+  if (fixture.retention) {
+    await login(page, fixture.owner);
+    const retained = fixture.retention;
+    const settingsPath = `/organizations/${retained.organization_id}/settings`;
+    const importPath = `/organizations/${retained.organization_id}/imports/${retained.source_id}`;
+    const importApi = `/api/v1/organizations/${retained.organization_id}/imports/`;
+    await page.goto(settingsPath);
+    await expect(page.getByText(/Legal hold: active/)).toBeVisible();
+    await page.goto(importPath);
+    await page
+      .getByLabel("Source removal reason", { exact: true })
+      .fill("Synthetic browser cleanup");
+    await page
+      .getByLabel("I confirm permanent removal of this unused original file.")
+      .check();
+    await submit(page, "Request unused source removal");
+    await expect(
+      form(page, "Request unused source removal").getByRole("alert"),
+    ).toContainText(/disabled|legal hold/);
+    await page.goto(settingsPath);
+    await page
+      .getByLabel("Minimum retention age in days (blank disables removal)", {
+        exact: true,
+      })
+      .fill("1");
+    await page
+      .getByLabel("Legal hold: preserve all original files", { exact: true })
+      .uncheck();
+    await page
+      .getByLabel("Retention policy change reason", { exact: true })
+      .fill("Synthetic unused source policy");
+    await submit(page, "Save retention policy");
+    await expect(page.getByText(/Legal hold: released/)).toBeVisible();
+    await page.goto(importPath);
+    await page
+      .getByLabel("Source removal reason", { exact: true })
+      .fill("Synthetic browser cleanup");
+    await page
+      .getByLabel("I confirm permanent removal of this unused original file.")
+      .check();
+    await submit(page, "Request unused source removal");
+    await expect(form(page, "Request unused source removal")).toHaveCount(0);
+    await expect
+      .poll(
+        async () => {
+          await submit(page, "Refresh source file status");
+          return (await authorized(page, importApi + retained.source_id + "/"))
+            .data.source_file_state;
+        },
+        { timeout: 45000 },
+      )
+      .toBe("removed");
+    expect(
+      (await authorized(page, importApi + retained.source_id + "/file/"))
+        .status,
+    ).toBe(409);
+    const history = await authorized(
+      page,
+      importApi + retained.source_id + "/history/",
+    );
+    expect(
+      history.data.results.some((row) => row.action === "retention_removed"),
+    ).toBe(true);
+    await page.reload();
+    await expect(
+      page.getByRole("heading", { name: "Original source file", exact: true }),
+    ).toBeVisible();
+    await expect(page.getByText(/^File status: removed\./)).toBeVisible();
+    await expect(
+      page.getByRole("link", { name: "Download private source", exact: true }),
+    ).toHaveCount(0);
+    await page.screenshot({
+      path: "/results/source-retention.png",
+      fullPage: true,
+    });
+    await page.goto(settingsPath);
+    await page
+      .getByLabel("Legal hold: preserve all original files", { exact: true })
+      .check();
+    await page
+      .getByLabel("Retention policy change reason", { exact: true })
+      .fill("Synthetic final preservation hold");
+    await submit(page, "Save retention policy");
+    await expect(page.getByText(/Legal hold: active/)).toBeVisible();
+    mark("default_legal_hold_explicit_unused_source_removal_preserved_history");
+  }
   fs.writeFileSync(
     "/results/acceptance.json",
     JSON.stringify(

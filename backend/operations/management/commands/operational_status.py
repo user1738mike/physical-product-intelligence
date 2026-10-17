@@ -9,9 +9,11 @@ from django.db import connection
 from django.db.migrations.executor import MigrationExecutor
 from django.db.models import Count, Min
 from django.utils import timezone
+from integrations.models import Delivery
 
+from billing.models import Inbox, PaymentOperation
 from ingestion.ai_provider import availability
-from ingestion.models import ImportJob
+from ingestion.models import ImportJob, SourceRemoval
 from operations.database import runtime_role_privileged
 
 
@@ -50,6 +52,24 @@ class Command(BaseCommand):
                     if oldest
                     else 0,
                     "limiter": "shared_database_fixed_window",
+                    "source_removals_by_state": list(
+                        SourceRemoval.objects.values("state")
+                        .annotate(count=Count("id"))
+                        .order_by("state")
+                    ),
+                    "billing_operations_by_state": list(
+                        PaymentOperation.objects.values("state")
+                        .annotate(count=Count("id"))
+                        .order_by("state")
+                    ),
+                    "billing_inbox_by_state": list(
+                        Inbox.objects.values("state").annotate(count=Count("id")).order_by("state")
+                    ),
+                    "deliveries_by_state": list(
+                        Delivery.objects.values("state")
+                        .annotate(count=Count("id"))
+                        .order_by("state")
+                    ),
                 }
             )
         )
