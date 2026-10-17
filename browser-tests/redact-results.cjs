@@ -8,7 +8,8 @@ function redactText(text, passwords = []) {
       /ppi_i_[0-9a-f]{32}\.[A-Za-z0-9_-]{43}/g,
       "[redacted-api-credential]",
     )
-    .replace(/whsec_[A-Za-z0-9+/=]+/g, "[redacted-webhook-secret]");
+    .replace(/whsec_[A-Za-z0-9+/=]+/g, "[redacted-webhook-secret]")
+    .replace(/[a-f0-9]{32}\.[A-Za-z0-9_-]{43}/g, "[redacted-recovery-token]");
 }
 function redact(directory, passwords) {
   for (const item of fs.readdirSync(directory, { withFileTypes: true })) {
@@ -27,6 +28,9 @@ if (require.main === module) {
     fs.readFileSync("/tmp/ppi-browser-journey.json", "utf8"),
   );
   const passwords = [fixture.owner.password, fixture.outsider.password];
+  if (fixture.recovery)
+    for (const key of ["password", "new_password", "changed_password", "token"])
+      passwords.push(fixture.recovery[key]);
   const report = "/tmp/ppi-browser.json",
     output = "/tmp/ppi-playwright-output";
   if (fs.existsSync(report))

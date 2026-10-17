@@ -3,7 +3,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from release import ReleaseError, compose, exclusive, run
+from release import ReleaseError, compose, exclusive, operate, run
 from release_preflight import validate
 
 
@@ -49,3 +49,36 @@ class ReleaseGuardTests(unittest.TestCase):
             with self.assertRaises(ReleaseError) as result:
                 run(["fixture"])
         self.assertNotIn("private", str(result.exception))
+
+    def test_supervised_processors_quiesce_before_backup_and_old_manifests_stay_compatible(self):
+        import json
+
+        for enabled in (False, True):
+            with self.subTest(enabled=enabled), tempfile.TemporaryDirectory() as directory:
+                folder = Path(directory)
+                manifest = {
+                    "project": "ppi-rehearsal-0123456789",
+                    "database": "ppi_rehearsal_0123456789",
+                    "events": [],
+                    "processors_enabled": enabled,
+                }
+                (folder / "release.json").write_text(json.dumps(manifest))
+                commands = []
+
+                def execute(command, _commands=commands, **kwargs):
+                    _commands.append((command, kwargs))
+                    return "{}"
+
+                with patch("release.run", side_effect=execute):
+                    operate(folder, "backup")
+                stop = next(
+                    (command, options) for command, options in commands if "stop" in command
+                )
+                self.assertEqual("processors" in stop[0], enabled)
+                self.assertEqual("compose.processors.yaml" in stop[0], enabled)
+                self.assertEqual(stop[1]["timeout"], 300 if enabled else 120)
+                backup_index = next(
+                    i for i, (command, _) in enumerate(commands) if "backup_bundle" in command
+                )
+                stop_index = next(i for i, (command, _) in enumerate(commands) if "stop" in command)
+                self.assertLess(stop_index, backup_index)

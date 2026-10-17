@@ -60,6 +60,11 @@ class Command(BaseCommand):
                     )
                 )
             cursor.execute(
+                sql.SQL("REVOKE INSERT, DELETE ON accounts_recoverygrant FROM {}").format(
+                    sql.Identifier(role)
+                )
+            )
+            cursor.execute(
                 sql.SQL("REVOKE INSERT ON commercial_operatorevent FROM {}").format(
                     sql.Identifier(role)
                 )
@@ -116,4 +121,17 @@ class Command(BaseCommand):
                         sql.Identifier("integrations_" + table), sql.Identifier(role)
                     )
                 )
+        actor_name = os.environ.get("PPI_PROCESSOR_ACTOR", "")
+        if actor_name:
+            from django.contrib.auth import get_user_model
+
+            if not re.fullmatch(r"ppi-processor-[a-f0-9]{10}", actor_name):
+                raise CommandError("Invalid isolated processor identity")
+            actor, created = get_user_model().objects.get_or_create(username=actor_name)
+            if created:
+                actor.is_staff = True
+                actor.set_unusable_password()
+                actor.save(update_fields=["is_staff", "password"])
+            elif not actor.is_active or not actor.is_staff or actor.has_usable_password():
+                raise CommandError("Existing processor identity cannot be repurposed")
         self.stdout.write("rehearsal_runtime_grants_current")

@@ -98,6 +98,9 @@ export function TenantFrame({
             Assessments
           </Link>
           <Link href="/account">Account</Link>
+          <Link href={`/organizations/${encodeURIComponent(org)}/settings`}>
+            Organization settings
+          </Link>
           {membership && membership.role !== "member" && (
             <Link
               href={`/organizations/${encodeURIComponent(org)}/integrations`}

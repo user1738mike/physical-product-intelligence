@@ -678,12 +678,32 @@ test("real HTTPS browser release journey with reviewed recorded extraction", asy
       "integration_reveal_once_rotation_revocation_destination_disable_switching",
     );
   }
-  // Existing API-only membership management is setup, never a substitute for the UI workflows.
-  const membership = await authorized(page, api + "members/", "POST", {
-    username: fixture.outsider.username,
-    role: "member",
-  });
-  expect(membership.status).toBe(201);
+  await page.goto(root + "/settings");
+  await expect(
+    page.getByRole("heading", { name: "Organization settings", exact: true }),
+  ).toBeVisible();
+  await page
+    .getByLabel("Registered username", { exact: true })
+    .fill(fixture.outsider.username);
+  await page.getByLabel("Initial role", { exact: true }).selectOption("admin");
+  await page
+    .getByRole("button", { name: "Add organization member", exact: true })
+    .click();
+  const memberRow = page
+    .getByRole("row")
+    .filter({ hasText: fixture.outsider.username });
+  await expect(memberRow.getByRole("cell").nth(1)).toHaveText("admin");
+  await page
+    .getByLabel("Role for " + fixture.outsider.username, { exact: true })
+    .selectOption("member");
+  await page
+    .getByRole("button", {
+      name: "Save role for " + fixture.outsider.username,
+      exact: true,
+    })
+    .click();
+  await expect(memberRow.getByRole("cell").nth(1)).toHaveText("member");
+  mark("membership_add_and_role_change_customer_forms");
   const outsiderContext = await browser.newContext({
     ignoreHTTPSErrors: false,
     baseURL: "https://edge:8443",
@@ -812,15 +832,22 @@ test("real HTTPS browser release journey with reviewed recorded extraction", asy
       )
     ).status,
   ).toBe(404);
-  expect(
-    (
-      await authorized(
-        page,
-        api + "members/" + membership.data.id + "/",
-        "DELETE",
-      )
-    ).status,
-  ).toBe(204);
+  await page.goto(root + "/settings");
+  const removal = page.waitForResponse(
+    (r) =>
+      r.request().method() === "DELETE" &&
+      new URL(r.url()).pathname.startsWith(api + "members/"),
+  );
+  await page
+    .getByRole("button", {
+      name: "Remove " + fixture.outsider.username,
+      exact: true,
+    })
+    .click();
+  expect((await removal).status()).toBe(204);
+  await expect(
+    page.getByRole("row").filter({ hasText: fixture.outsider.username }),
+  ).toHaveCount(0);
   await outsider.goto(root + "/products/" + product);
   expect((await authorized(outsider, api + "commercial/")).status).toBe(404);
   expect((await authorized(outsider, api + "billing/")).status).toBe(404);
@@ -858,6 +885,152 @@ test("real HTTPS browser release journey with reviewed recorded extraction", asy
   ).toBeVisible();
   expect((await authorized(page, api + "products/")).status).toBe(403);
   mark("switching_member_role_foreign_file_revocation_logout_denials");
+  if (fixture.recovery) {
+    const recovery = fixture.recovery;
+    await page.goto("/account/recover#token=" + recovery.token);
+    await expect(
+      page.getByLabel("New password", { exact: true }),
+    ).toBeVisible();
+    expect(new URL(page.url()).hash).toBe("");
+    await page
+      .getByLabel("New password", { exact: true })
+      .fill(recovery.new_password);
+    await page
+      .getByLabel("Confirm new password", { exact: true })
+      .fill(recovery.new_password);
+    await page
+      .getByRole("button", { name: "Update password", exact: true })
+      .click();
+    await expect(page.getByRole("status")).toContainText("Password updated");
+    await login(page, {
+      username: recovery.username,
+      password: recovery.new_password,
+    });
+    await page
+      .getByLabel("Current password", { exact: true })
+      .fill(recovery.new_password);
+    await page
+      .getByLabel("New password", { exact: true })
+      .fill(recovery.changed_password);
+    await page
+      .getByLabel("Confirm new password", { exact: true })
+      .fill(recovery.changed_password);
+    await page
+      .getByRole("button", { name: "Update password", exact: true })
+      .click();
+    await expect(
+      page.getByRole("heading", { name: "Sign in", exact: true }),
+    ).toBeVisible();
+    await login(page, {
+      username: recovery.username,
+      password: recovery.changed_password,
+    });
+    const settingsPath = `/organizations/${recovery.organization_id}/settings`;
+    await page.goto(settingsPath);
+    await expect(
+      page.getByRole("heading", { name: "Organization settings", exact: true }),
+    ).toBeVisible();
+    await page
+      .getByLabel("Organization display name", { exact: true })
+      .fill("Recovered organization " + suffix);
+    await page
+      .getByRole("button", { name: "Rename organization", exact: true })
+      .click();
+    await expect(page.locator(".workspace-context")).toContainText(
+      "Recovered organization " + suffix,
+    );
+    await page
+      .getByLabel("Registered username", { exact: true })
+      .fill(fixture.outsider.username);
+    await page
+      .getByRole("button", { name: "Add organization member", exact: true })
+      .click();
+    await page
+      .getByLabel("Confirm new owner " + fixture.outsider.username, {
+        exact: true,
+      })
+      .fill(fixture.outsider.username);
+    await page
+      .getByRole("button", {
+        name: "Transfer ownership to " + fixture.outsider.username,
+        exact: true,
+      })
+      .click();
+    await expect(page.locator(".workspace-context")).toContainText(
+      "Your role: admin",
+    );
+    await expect(
+      page.getByRole("button", { name: "Suspend organization", exact: true }),
+    ).toHaveCount(0);
+    const ownerContext = await browser.newContext({
+      ignoreHTTPSErrors: false,
+      baseURL: "https://edge:8443",
+    });
+    const newOwner = await ownerContext.newPage();
+    await login(newOwner, fixture.outsider);
+    await newOwner.goto(settingsPath);
+    await newOwner
+      .getByLabel("Confirm suspension slug", { exact: true })
+      .fill(recovery.organization_slug);
+    await newOwner
+      .getByRole("button", { name: "Suspend organization", exact: true })
+      .click();
+    await expect(
+      newOwner.getByRole("button", {
+        name: "Reactivate organization",
+        exact: true,
+      }),
+    ).toBeVisible();
+    expect(
+      (
+        await authorized(
+          page,
+          `/api/v1/organizations/${recovery.organization_id}/members/`,
+        )
+      ).status,
+    ).toBe(404);
+    await newOwner
+      .getByRole("button", { name: "Reactivate organization", exact: true })
+      .click();
+    await newOwner
+      .getByLabel("Confirm new owner " + recovery.username, { exact: true })
+      .fill(recovery.username);
+    await newOwner
+      .getByRole("button", {
+        name: "Transfer ownership to " + recovery.username,
+        exact: true,
+      })
+      .click();
+    await expect(newOwner.locator(".workspace-context")).toContainText(
+      "Your role: admin",
+    );
+    await ownerContext.close();
+    await page.goto(settingsPath);
+    await expect(page.locator(".workspace-context")).toContainText(
+      "Your role: owner",
+    );
+    await page
+      .getByRole("button", {
+        name: "Remove " + fixture.outsider.username,
+        exact: true,
+      })
+      .click();
+    await expect(
+      page.getByRole("row").filter({ hasText: fixture.outsider.username }),
+    ).toHaveCount(0);
+    mark("organization_rename_transfer_suspend_reactivate_role_boundaries");
+    await page.goto("/account");
+    await page.getByRole("button", { name: "Sign out", exact: true }).click();
+    expect(
+      (
+        await authorized(page, "/api/v1/auth/recover/", "POST", {
+          token: recovery.token,
+          new_password: recovery.new_password,
+        })
+      ).status,
+    ).toBe(400);
+    mark("operator_issued_recovery_password_change_single_use_logout");
+  }
   fs.writeFileSync(
     "/results/acceptance.json",
     JSON.stringify(

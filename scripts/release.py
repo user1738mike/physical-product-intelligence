@@ -120,7 +120,7 @@ def available_port(port):
             ) from None
 
 
-def prepare(folder, port=18443):
+def prepare(folder, port=18443, processors=False):
     available_port(port)
     if folder.exists():
         raise ReleaseError("Preparation requires a new exclusive directory")
@@ -151,6 +151,8 @@ def prepare(folder, port=18443):
         "AI_EXTRACTION_ENABLED": "false",
         "PPI_REHEARSAL_FIXTURES": "synthetic-only",
     }
+    if processors:
+        common["PPI_PROCESSOR_ACTOR"] = "ppi-processor-" + token
     runtime_role = "ppi_runtime_" + token
     envfile(
         folder / "runtime.env",
@@ -196,10 +198,24 @@ def prepare(folder, port=18443):
             "PPI_REHEARSAL_STATE_DIR": folder.as_posix(),
         }
     )
+    if processors:
+        values["PPI_PROCESSOR_ACTOR"] = common["PPI_PROCESSOR_ACTOR"]
+        write_json(
+            folder / "processors.json",
+            {
+                "services": {
+                    "processors": {
+                        "environment": {"DJANGO_SETTINGS_MODULE": "config.settings.rehearsal"},
+                        "volumes": ["rehearsal_tls:/certs:ro"],
+                    }
+                }
+            },
+        )
     envfile(folder / "compose.env", values)
     manifest = {
         "format": "ppi-release-v1",
         "target": "isolated-local-rehearsal",
+        "processors_enabled": processors,
         "project": "ppi-rehearsal-" + token,
         "database": common["POSTGRES_DB"],
         "created_at": datetime.now(UTC).isoformat(),
@@ -235,6 +251,8 @@ def compose(folder, manifest):
         "-f",
         str(folder / "network.json"),
     ]
+    if manifest.get("processors_enabled"):
+        command += ["-f", "compose.processors.yaml", "-f", str(folder / "processors.json")]
     if manifest.get("active_override"):
         name = manifest["active_override"]
         if not re.fullmatch(r"app-[a-f0-9]{12}\.json", name):
@@ -284,6 +302,10 @@ def completed_backup(manifest):
 def operate(folder, action, previous_image=None):
     manifest = json.loads((folder / "release.json").read_text(encoding="utf-8"))
     command = compose(folder, manifest)
+    writers = ["edge", "frontend", "backend"] + (
+        ["processors"] if manifest.get("processors_enabled") else []
+    )
+    stop_timeout = 300 if manifest.get("processors_enabled") else 120
     with exclusive(folder):
         run(command + ["config", "--quiet"])
         started = time.monotonic()
@@ -334,7 +356,7 @@ def operate(folder, action, previous_image=None):
                 # Export public CA only. Private keys never leave their protected named volume.
                 run(command + ["cp", "db:/certs/ca.crt", str(folder / "ca.crt")])
             elif action == "backup":
-                run(command + ["stop", "edge", "frontend", "backend"], timeout=120)
+                run(command + ["stop", *writers], timeout=stop_timeout)
                 bundle = "/var/lib/ppi/backups/" + secrets.token_hex(6)
                 receipt = run(
                     command
@@ -360,7 +382,7 @@ def operate(folder, action, previous_image=None):
                     timeout=180,
                 )
             elif action == "restart":
-                run(command + ["stop"], timeout=120)
+                run(command + ["stop"], timeout=stop_timeout)
                 run(
                     command + ["up", "-d", "--wait", "--wait-timeout", "240"],
                     timeout=300,
@@ -479,7 +501,7 @@ def operate(folder, action, previous_image=None):
                         }
                     },
                 )
-                run(command + ["stop", "edge", "frontend", "backend"], timeout=120)
+                run(command + ["stop", *writers], timeout=stop_timeout)
                 if action == "rollout":
                     run(
                         command
@@ -509,6 +531,7 @@ def operate(folder, action, previous_image=None):
                         "180",
                         "backend",
                         "frontend",
+                        *(["processors"] if manifest.get("processors_enabled") else []),
                     ],
                     timeout=240,
                 )
@@ -594,13 +617,18 @@ def main():
     parser.add_argument("--directory", type=Path, required=True)
     parser.add_argument("--https-port", type=int, default=18443)
     parser.add_argument("--previous-image")
+    parser.add_argument(
+        "--processors",
+        action="store_true",
+        help="Include supervised processors in a new isolated rehearsal",
+    )
     args = parser.parse_args()
     folder = args.directory.resolve()
     if not folder.is_relative_to(ROOT / "artifacts"):
         parser.error("Rehearsal state must stay under this checkout's ignored artifacts directory")
     try:
         result = (
-            prepare(folder, args.https_port)
+            prepare(folder, args.https_port, args.processors)
             if args.action == "prepare"
             else operate(folder, args.action, args.previous_image)
         )

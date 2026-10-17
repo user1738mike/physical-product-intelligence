@@ -21,8 +21,8 @@ Every implemented row still depends on integrated acceptance of the final inputs
 | --- | --- | --- | --- | --- |
 | ID-01 | P2, M-A: secure registration/login/logout/session rotation and CSRF | accounts; frontend account; fixed API proxy | phase2-implementation-report; phase10 HTTPS smoke | implemented; rerun integrated journey |
 | ID-02 | P2, M-A: ordinary-account onboarding and organization selection/pagination | accounts, organizations, frontend account | phase10 browser journey | implemented; verify final candidate |
-| ID-03 | M-A: usable account recovery | username auth; existing trusted admin only | ADR0006 explicitly deferred public recovery | missing; implement a secure recovery flow without assuming verified email |
-| ID-04 | P2, M-A: owner/admin/member lifecycle, transfer and last owner | organizations services/constraints | phase2 + phase10 adversarial tests | implemented; verify |
+| ID-03 | M-A: usable account recovery | accounts RecoveryGrant/services/operator command; account recovery/password forms | 9 new backend tests within 302-test passing suite; browser pending | building; no verified email assumed; operator-assisted recovery and password change implemented |
+| ID-04 | P2, M-A/I: owner/admin/member lifecycle, transfer and last owner | organizations services/constraints; new settings screen | phase2 + phase10 adversarial tests; expanded browser pending | building; customer membership/ownership/lifecycle UI closes prior API-only gap |
 | ID-05 | P2, M-A: revoked/inactive access across all resources and jobs; no staff tenant bypass | shared authorization + scoped services | backend tenant tests; browser revocation | implemented; audit new processors and flows |
 | ID-06 | P2, M-A: audit material actions without secrets | audit; operations logging | backend redaction tests | implemented; verify new actions |
 | CAT-01 | P3, M-B: tenant-unique immutable SKU; complete numbered revisions; archive | products models/services; product UI | phase3-completion-report | implemented; verify |
@@ -32,7 +32,7 @@ Every implemented row still depends on integrated acceptance of the final inputs
 | CAT-05 | P3/P6, M-B: reported/estimated/attested/unknown/conflicting claims and explicit selection | claims, verification and selection services/UI | phase3/6 reports | implemented; verify |
 | ING-01 | P4, M-C: bounded CSV/XLSX parsing, mapping and row errors | ingestion parsers/worker/services/UI | phase4 report + parser tests | implemented; verify |
 | ING-02 | P4, M-C: labeled text PDF/TXT, source locations and unsupported-layout errors | isolated ingestion worker | phase4/6 reports | implemented; verify |
-| ING-03 | P4 conditional OCR, M-C: only promised responsible image/OCR scope | parser explicitly rejects scanned images | P4 section215 makes OCR conditional; original v1 scope reconciliation pending | verify scope; never infer physical dimensions from photographs |
+| ING-03 | P4 conditional OCR, M-C: only promised responsible image/OCR scope | parser explicitly rejects scanned images | original P4 section8: add OCR only if dependencies/execution environment support it responsibly; P3 excludes image recognition; ADR0009 bounded formats | not applicable to agreed formats: no image/OCR dependency or unconditional v1 promise found; CSV/XLSX/text PDF/TXT acceptance remains required |
 | ING-04 | P4, M-C: private validation, bounded malware scanning, fail closed | uploads/storage/scanning; ClamAV | phase10 real scanner smoke | implemented; verify dependency failure |
 | ING-05 | P4/P6, M-C: job states, correction/rejection, cancellation, retries, atomic partial results | ingestion services/ai_services/UI | phase4/6/9A tests | implemented; automatic recovery tracked OPS-02 |
 | ING-06 | P4, M-C: human approval and idempotent apply; canonical claims not silently overwritten | candidate/review/apply services | backend race tests + phase10 browser | implemented; verify |
@@ -41,7 +41,7 @@ Every implemented row still depends on integrated acceptance of the final inputs
 | EQ-02 | P5, M-D: immutable typed rules, activation and explicit units/margins | compatibility rules/activation | phase5 engine/DB tests | implemented; verify |
 | EQ-03 | P5, M-D: deterministic compatible/incompatible/indeterminate, explanations and unknowns | Decimal engine; assessment UI | phase5 boundary tests; phase10 browser | implemented; verify |
 | EQ-04 | P5, M-D: immutable snapshots/comparison, no safety certification | assessments/comparison UI/exports | snapshot tests + phase10 browser | implemented; verify |
-| EQ-05 | M-D: agreed batch/measured-feedback/reporting scope, version-linked observations | single assessment and comparison/export currently | roadmap/domain distinguish future physical tests | verify original scope; no invented physical outcomes |
+| EQ-05 | M-D: agreed batch/measured-feedback/reporting scope, version-linked observations | single assessment, immutable comparison and JSON/CSV exports | P5 immutable history/comparison, ADR0010; domain model explicitly puts physical test methods/artifacts later; P10 bounds per-assessment exports | no additional batch/physical-feedback promise found in Phase1–10 v1 roadmap; comparison/reporting verification remains EQ-04/INT-02; no invented physical outcomes |
 | AI-01 | P6, M-E: optional provider, graceful disabled mode | ingestion ai_provider; SDK optional | phase6 tests; check_ai_provider | implemented; zero live calls authorized |
 | AI-02 | P6, M-E: strict schema, grounded quote/location, deterministic normalization | ai_schema/ai_services + review | versioned 18-case mock evaluation | implemented; rerun evaluation |
 | AI-03 | P6, M-E: leases, global cap, fencing, retries/cancellation, human authority | ingestion + commercial reservations | phase9A/10 backend tests | implemented; recovery service building |
@@ -62,7 +62,7 @@ Every implemented row still depends on integrated acceptance of the final inputs
 | INT-05 | P10, M-H: isolated real HTTPS client and signed local receiver | integration_demo; examples | phase10-integration-demo-verified receipt | implemented; rerun affected runtime |
 | UI-01 | M-I: usable forms/navigation/errors/progress/role and tenant switch | frontend app workspaces | 59 tests + 11 phase10 browser checkpoints | implemented baseline; new features require UI acceptance |
 | UI-02 | M-I: no secret persistence, dead customer actions or misleading success | frontend reveal lifecycle; browser redaction | phase10 browser + redaction tests | verify current and new flows |
-| OPS-01 | M-J: supervised automatic webhook dispatcher | operations processors + compose.processors.yaml | completion-processors tests | building; actual daemon restart/health/dispatch acceptance next |
+| OPS-01 | M-J: supervised automatic webhook dispatcher | operations processors + compose.processors.yaml; release.py lifecycle | 6 passing PostgreSQL processor tests; daemon restart; script backup-writer regression | building; actual supervised Compose rehearsal started |
 | OPS-02 | M-J: automatic stale extraction fencing and quota release without AI execution | same processor using commercial.recover | completion-processors tests | building; fault/restart verification |
 | OPS-03 | P7, M-J: bounded private storage, migrations/runtime role split, health/logs/limits | production/rehearsal recipes; operations | phase7–10 tests and reports | implemented; verify new candidate |
 | OPS-04 | M-J: necessary billing inbox/reconciliation processor lifecycle | bounded billing commands only | phase9b report | missing; wire only configured authorized provider mode; never initiate real payments implicitly |
@@ -79,9 +79,11 @@ Every implemented row still depends on integrated acceptance of the final inputs
 
 ## Dependency-ordered work queue
 
-1. **Building:** OPS-01/02 supervised processor, bounded recovery, health and fault tests.
-2. Reconcile remaining original brief requirements against this matrix; resolve
-   ID-03, ING-03/07 and EQ-05 with actual scope, implement independent customer flows.
+1. **Slice accepted:** OPS-01/02 supervised processor, bounded recovery, health,
+   daemon tests and real supervised Compose/backup lifecycle.
+2. **Slice accepted:** ID-03 recovery and ID-04 customer settings; full14-checkpoint
+   HTTPS browser acceptance. ING-03/EQ-05 original conditional scope reconciled.
+   ING-07 retention implementation remains next, not silently deferred.
 3. OPS-04 configured billing lifecycle and remaining processor supervision.
 4. Retention controls and operational metrics; complete deploy/runbooks and monitoring.
 5. Integrated acceptance, current-compatible restore/rollback and measured load;

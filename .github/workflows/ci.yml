@@ -184,7 +184,7 @@ jobs:
           docker pull clamav/clamav:stable
       - name: Create isolated HTTPS rehearsal
         run: |
-          python scripts/release.py prepare --directory artifacts/browser-ci --https-port 18443
+          python scripts/release.py prepare --directory artifacts/browser-ci --https-port 18443 --processors
           python scripts/release.py start --directory artifacts/browser-ci
       - name: Create synthetic login context using real session and business APIs
         env:
@@ -196,7 +196,7 @@ jobs:
           python scripts/phase2_smoke.py --allow-create-test-data
           python scripts/phase3_smoke.py --allow-create-test-data
       - name: Real browser with private test-only CA trust and sandbox
-        run: python scripts/browser_acceptance.py --directory artifacts/browser-ci --output artifacts/browser-results --commercial-fixtures --billing-fixtures --integration-fixtures
+        run: python scripts/browser_acceptance.py --directory artifacts/browser-ci --output artifacts/browser-results --commercial-fixtures --billing-fixtures --integration-fixtures --recovery-fixtures
       - name: Signed local integration and revocation demonstration
         run: python scripts/integration_demo.py --directory artifacts/browser-ci --output artifacts/integration-demo-ci
       - uses: actions/upload-artifact@v4

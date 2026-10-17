@@ -54,6 +54,16 @@ For one bounded diagnostic cycle use `python manage.py run_processors --once
 eligible work and is not a dry run. Existing `dispatch_integrations` and commercial
 recovery commands retain their documented operator workflows.
 
+New isolated rehearsals can include the service with
+`python scripts/release.py prepare --directory artifacts/NEW --https-port PORT --processors`.
+The guarded bootstrap provisions a new unusable-password synthetic operator;
+it refuses to elevate or repurpose an existing ordinary account. The generated
+override mounts the isolated PostgreSQL CA. Old rehearsal manifests are preserved.
+Release backup/rollout/rollback now stop the processor before quiesced work and
+restart it afterward, using the candidate tool image during application rollback.
+The stop timeout accounts for a whole bounded cycle. Include the same writer
+quiescence in the approved host's maintenance commands.
+
 Tests in `operations.test_processors` exercise interrupted claim recovery,
 disabled transport, fenced extraction recovery, current-counter preservation,
 operator revocation, isolated failure and two real daemon starts/clean SIGTERM

@@ -18,6 +18,7 @@ def main():
     parser.add_argument("--commercial-fixtures", action="store_true")
     parser.add_argument("--billing-fixtures", action="store_true")
     parser.add_argument("--integration-fixtures", action="store_true")
+    parser.add_argument("--recovery-fixtures", action="store_true")
     args = parser.parse_args()
     folder, output = args.directory.resolve(), args.output.resolve()
     if not all(p.is_relative_to(ROOT / "artifacts") for p in (folder, output)):
@@ -25,6 +26,22 @@ def main():
     manifest = json.loads((folder / "release.json").read_text(encoding="utf-8"))
     compose(folder, manifest)  # Enforces generated project/database identity before execution.
     fixture = json.loads((folder / "journey.json").read_text(encoding="utf-8"))
+    if args.recovery_fixtures:
+        fixture["recovery"] = json.loads(
+            run(
+                compose(folder, manifest)
+                + [
+                    "run",
+                    "--rm",
+                    "--no-deps",
+                    "-T",
+                    "migration",
+                    "python",
+                    "manage.py",
+                    "prepare_recovery_acceptance",
+                ]
+            )
+        )
     if args.commercial_fixtures:
         fixture["commercial"] = json.loads(
             run(
@@ -180,6 +197,11 @@ def main():
         if processor:
             processor.join(timeout=2)
     private = [fixture[role]["password"] for role in ("owner", "outsider")]
+    if fixture.get("recovery"):
+        private += [
+            fixture["recovery"][key]
+            for key in ("password", "new_password", "changed_password", "token")
+        ]
     for password in private:
         log = log.replace(password, "[redacted-synthetic-password]")
     (output / "browser.log").write_text(log, encoding="utf-8")

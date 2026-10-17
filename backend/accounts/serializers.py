@@ -44,3 +44,13 @@ class CsrfSerializer(serializers.Serializer):
 
 class DetailSerializer(serializers.Serializer):
     detail = serializers.CharField(read_only=True)
+
+
+class PasswordChangeSerializer(StrictSerializer):
+    current_password = serializers.CharField(write_only=True, trim_whitespace=False, max_length=256)
+    new_password = serializers.CharField(write_only=True, trim_whitespace=False, max_length=256)
+
+
+class RecoverySerializer(StrictSerializer):
+    token = serializers.CharField(write_only=True, trim_whitespace=False, max_length=100)
+    new_password = serializers.CharField(write_only=True, trim_whitespace=False, max_length=256)

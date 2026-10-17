@@ -141,6 +141,7 @@ REST_FRAMEWORK = {
     "DEFAULT_THROTTLE_RATES": {
         "login": "10/min",
         "register": "5/hour",
+        "recovery": "10/hour",
         "imports": "120/hour",
         "assessments": "60/hour",
         "extractions": "20/hour",
