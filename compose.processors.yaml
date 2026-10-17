@@ -2,11 +2,11 @@
 # Uses the protected owner connection because append-only delivery attempts and
 # fenced commercial recovery are deliberately unavailable to the HTTP DB role.
 services:
-  processors:
+  processors: &processor
     image: ${PPI_BACKEND_IMAGE:?Set a reviewed immutable backend image reference}
     env_file: ["${PPI_MIGRATION_ENV_FILE:?Set the separately protected processor owner configuration file}"]
     command: [python, manage.py, run_processors]
-    environment:
+    environment: &processor_environment
       DJANGO_SETTINGS_MODULE: config.settings.production
       INGESTION_STORAGE_ROOT: /var/lib/ppi/private
       INGESTION_SCANNER: ingestion.scanning.clamd_scan
@@ -26,6 +26,19 @@ services:
       backend: {condition: service_healthy}
     healthcheck:
       test: [CMD, python, -c, "import time; from pathlib import Path; p=Path('/tmp/ppi-processors-heartbeat'); raise SystemExit(0 if p.exists() and time.time()-p.stat().st_mtime<240 else 1)"]
+      interval: 30s
+      timeout: 5s
+      retries: 2
+      start_period: 60s
+  billing_processor:
+    <<: *processor
+    volumes: []
+    command: [python, manage.py, run_billing_processor]
+    environment:
+      <<: *processor_environment
+      PPI_BILLING_PROCESSOR_ENABLED: ${PPI_BILLING_PROCESSOR_ENABLED:-false}
+    healthcheck:
+      test: [CMD, python, -c, "import time; from pathlib import Path; p=Path('/tmp/ppi-billing-processor-heartbeat'); raise SystemExit(0 if p.exists() and time.time()-p.stat().st_mtime<240 else 1)"]
       interval: 30s
       timeout: 5s
       retries: 2

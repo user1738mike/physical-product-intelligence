@@ -12,8 +12,13 @@ from ingestion.models import ImportJob
 from operations.models import RateBucket
 
 
-def cycle(actor, *, limit=20):
+def operator(actor):
+    actor.refresh_from_db(fields=["is_active", "is_staff"])
     commercial.operator(actor)
+
+
+def cycle(actor, *, limit=20):
+    operator(actor)
     if not 1 <= limit <= 100:
         raise ValueError("Cycle limit must be 1..100")
     result = {"deliveries": 0, "recovered": 0, "counters": 0, "failures": 0}
@@ -31,6 +36,7 @@ def cycle(actor, *, limit=20):
         )
         for pk in ids:
             try:
+                operator(actor)
                 integrations.dispatch_one(pk)
                 result["deliveries"] += 1
             except Exception:
@@ -44,6 +50,7 @@ def cycle(actor, *, limit=20):
     )
     for job in stale:
         try:
+            operator(actor)
             result["recovered"] += commercial.recover(
                 actor, job.organization, reason="Supervised abandoned-work recovery", limit=1
             )
@@ -54,5 +61,6 @@ def cycle(actor, *, limit=20):
         .order_by("expires_at", "pk")
         .values_list("pk", flat=True)[:500]
     )
+    operator(actor)
     result["counters"] = RateBucket.objects.filter(pk__in=ids, expires_at__lt=now).delete()[0]
     return result

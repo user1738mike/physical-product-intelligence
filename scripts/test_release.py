@@ -67,6 +67,8 @@ class ReleaseGuardTests(unittest.TestCase):
 
                 def execute(command, _commands=commands, **kwargs):
                     _commands.append((command, kwargs))
+                    if "ps" in command:
+                        return "backend\nfrontend\nedge\nprocessors\n"
                     return "{}"
 
                 with patch("release.run", side_effect=execute):
@@ -75,6 +77,7 @@ class ReleaseGuardTests(unittest.TestCase):
                     (command, options) for command, options in commands if "stop" in command
                 )
                 self.assertEqual("processors" in stop[0], enabled)
+                self.assertEqual("billing_processor" in stop[0], enabled)
                 self.assertEqual("compose.processors.yaml" in stop[0], enabled)
                 self.assertEqual(stop[1]["timeout"], 300 if enabled else 120)
                 backup_index = next(
@@ -82,3 +85,5 @@ class ReleaseGuardTests(unittest.TestCase):
                 )
                 stop_index = next(i for i, (command, _) in enumerate(commands) if "stop" in command)
                 self.assertLess(stop_index, backup_index)
+                resumed = next(command for command, _ in commands if "up" in command)
+                self.assertNotIn("billing_processor", resumed)

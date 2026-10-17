@@ -207,7 +207,11 @@ def prepare(folder, port=18443, processors=False):
                     "processors": {
                         "environment": {"DJANGO_SETTINGS_MODULE": "config.settings.rehearsal"},
                         "volumes": ["rehearsal_tls:/certs:ro"],
-                    }
+                    },
+                    "billing_processor": {
+                        "environment": {"DJANGO_SETTINGS_MODULE": "config.settings.rehearsal"},
+                        "volumes": ["rehearsal_tls:/certs:ro"],
+                    },
                 }
             },
         )
@@ -303,7 +307,7 @@ def operate(folder, action, previous_image=None):
     manifest = json.loads((folder / "release.json").read_text(encoding="utf-8"))
     command = compose(folder, manifest)
     writers = ["edge", "frontend", "backend"] + (
-        ["processors"] if manifest.get("processors_enabled") else []
+        ["processors", "billing_processor"] if manifest.get("processors_enabled") else []
     )
     stop_timeout = 300 if manifest.get("processors_enabled") else 120
     with exclusive(folder):
@@ -356,6 +360,11 @@ def operate(folder, action, previous_image=None):
                 # Export public CA only. Private keys never leave their protected named volume.
                 run(command + ["cp", "db:/certs/ca.crt", str(folder / "ca.crt")])
             elif action == "backup":
+                # Resume only writers that were actually running. A new recipe
+                # may introduce a service whose command/schema is not available
+                # in the current application image until the subsequent rollout.
+                running = run(command + ["ps", "--status", "running", "--services"]).splitlines()
+                resume = [name for name in writers if name in running]
                 run(command + ["stop", *writers], timeout=stop_timeout)
                 bundle = "/var/lib/ppi/backups/" + secrets.token_hex(6)
                 receipt = run(
@@ -377,10 +386,11 @@ def operate(folder, action, previous_image=None):
                     ]
                 )
                 event.update({"bundle": bundle, "receipt": json.loads(receipt)})
-                run(
-                    command + ["up", "-d", "--wait", "--wait-timeout", "120"],
-                    timeout=180,
-                )
+                if resume:
+                    run(
+                        command + ["up", "-d", "--wait", "--wait-timeout", "120", *resume],
+                        timeout=180,
+                    )
             elif action == "restart":
                 run(command + ["stop"], timeout=stop_timeout)
                 run(
@@ -531,7 +541,11 @@ def operate(folder, action, previous_image=None):
                         "180",
                         "backend",
                         "frontend",
-                        *(["processors"] if manifest.get("processors_enabled") else []),
+                        *(
+                            ["processors", "billing_processor"]
+                            if manifest.get("processors_enabled")
+                            else []
+                        ),
                     ],
                     timeout=240,
                 )

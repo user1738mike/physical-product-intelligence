@@ -27,13 +27,13 @@ old worker and releases its usage reservation. Recovery leaves a failed retryabl
 job for explicit human retry; it does not execute the provider again.
 
 No AI processing or payment initiation occurs in this service. AI is additionally
-disabled in its environment. Payment inbox/reconciliation lifecycle remains a
-separate completion requirement. Ordinary imports are explicit bounded requests,
+disabled in its environment. The separate [billing supervisor](billing-processor-operations.md)
+handles configured verified inbox/reconciliation, disabled by default. Ordinary imports are explicit bounded requests,
 not an unobserved background queue. Disabled outbound configuration preserves
 pending deliveries. Re-enable only with approved hosts, signing roots and egress;
 normal expiry/authorization rules are re-evaluated when processing resumes.
 
-The operator is reloaded and checked each cycle. Revoking the operator stops
+The operator is reloaded each cycle and before every work item. Revoking the operator stops
 mutations; provisioning and ongoing owner DB access remain trusted operations.
 Output is fixed numeric counts only. Per-item failures do not stop other selected
 work; a DB/configuration failure is retried on the next interval without private

@@ -25,6 +25,8 @@ Compose merged configuration validation and `git diff --check` passed.
 No assertions weakened. Full integrated checks still pending.
 
 Processor slice committed as `ae84540` (inspect actual HEAD before resuming).
+Identity/runtime slice subsequently committed as
+`730e9eb469d043875bb203417e13636f6fcf791d`; checkout was clean immediately after.
 Current second slice implements ID-03: additive `accounts.RecoveryGrant` model,
 owner-issued 256-bit secret with one-way verifier, expiry/revocation/password
 binding, atomic redemption/password change, CSRF/shared limits, session and
@@ -92,6 +94,43 @@ The signed manual receiver demonstration may race the automatic dispatcher;
 coordinate that isolated demonstration explicitly rather than weakening claims.
 Do not stop after that increment.
 
+## Active increment after the identity commit
+
+Billing supervision is implemented but not yet committed: `operations.billing_processor`,
+`run_billing_processor`, common supervisor class hooks, per-item operator refresh,
+session-local SQL/lock/idle bounds, additive billing0003 `next_check_at` fields,
+Compose billing worker disabled by default, and release writer quiescence/resume.
+It performs lookup-only reconciliation and verified inbox processing; no create/
+resubmit/real payment calls. Uncertain operations older than3days require manual
+review. Default and missing-provider modes are inert. The simulator remains the
+only executable adapter; required real-provider integration is still external.
+
+Regression work: the original upgrade test restored hard-coded billing0002 and
+left later tests with a stale schema. It now restores actual leaf targets and
+also verifies an existing operation/inbox survive billing0003. A genuine cycle
+cutoff defect deferred newly lookup-received facts; refreshed the event cutoff,
+retaining strict idempotent/restart assertions. A genuine shutdown deadlock was
+caught: signal handlers calling threading.Event.set can interrupt Event.wait's
+lock. Replaced with a plain stop flag and <=1second sleep polling; tests still
+require clean SIGTERM within15seconds. Prior failed receipts r1–r3 preserved.
+Current `billing operations`85-test rerun r4 is active session26824, receipt
+`artifacts/completion-billing-processors-tests-r4.log`; inspect before claiming pass.
+
+20 script/provenance tests passed in0.344s outside Windows sandbox restrictions
+(`completion-scripts-provenance-tests.log`). Ruff passes after formatting.
+New source includes uncommitted scanner provenance utilities and tests separately
+from billing; stage focused increments explicitly. No external push yet.
+
+Next tasks: finish billing tests/runtime validation and focused commit; finish
+scan provenance/gate integration, run/review actual immutable-image scans; then
+ING-07 bounded retention/legal hold controls. Also run current restore/rollback/
+restart/dependency-failure/load, exact candidate publication/hosted CI and final
+decision packet. New Compose file adds `billing_processor`; existing new target's
+generated processors.json predates that entry, so add the same rehearsal settings
+and read-only TLS volume for that service before its next rollout. Backup now
+resumes only previously running writers so newly introduced services are not
+started against old images/schema. Keep current source/test receipts distinct.
+
 Supply-chain changed condition: host curl with normal TLS successfully retrieved
 official `https://grype.anchore.io/databases/v6/latest.json`; metadata is in ignored
 `artifacts/completion-grype-latest.json`, built2026-10-17T06:27:09Z,
@@ -103,6 +142,24 @@ SHA-256 matches. Preserve historical scanner cache. Import into a separate new
 cache, validate hash/freshness, retain official provenance and adapt scan tooling
 honestly if Grype records a local import path. No vulnerability acceptance yet.
 
+Download completed:191685464bytes, expected SHA-256 verified. First offline import
+into new `ppi_completion_security_cache` passed Grype hash/freshness checks, schema
+v6.1.10, built06:27:09Z, `From: manual import` (3.26GBDB). Historical cache untouched.
+Do NOT merely whitelist manual imports: official archive plus arbitrary valid
+cache do not prove content equality. Added `scripts/attest_grype_import.py` to
+fetch current official TLS metadata, verify archive checksum, refuse an existing
+cache, import via pinned Grype into a fresh cache, then hash DB content and
+validate age/schema/status. Actual fresh attestation passed into
+`ppi_grype_93f4b1a8d0`, receipt `artifacts/completion-grype-provenance.json`,
+log `completion-grype-attestation.log`. It does not claim image acceptance.
+`grype_provenance.py`, its4tests and updated release_scan.py are uncommitted.
+release_scan now accepts only a verified matching receipt/cache/content chain
+for manual imports; still blocks high/critical and stale/invalid DBs, and requires
+an explicitly selected immutable compatible rollback image (no automatic old
+Phase8 artifact). Run scans with explicit current SDK and rollback IDs. No image
+scans have yet run against this newly valid cache. Database transfer is no longer
+an external blocker; remaining scan/remediation work is independent and required.
+
 Preserve all existing env files, volumes and reports. Phase10 rehearsal is
 `ppi-rehearsal-4a1117fa4d`, HTTPS loopback 21443; protected synthetic configuration
 under ignored `artifacts/phase10-rehearsal` must not be printed. The Docker daemon
@@ -111,6 +168,23 @@ with read-only backend source mount runs isolated PostgreSQL tests. Never mount
 or print the root `.env`. No new dependencies, live AI, real payments, remote
 deployment or image publication have occurred.
 
-External dependencies remain: merchant/provider/commercial decisions; fresh valid
-Grype database; last-observed hosted billing restriction; approved staging target;
+External dependencies remain: merchant/provider/commercial decisions;
+last-observed hosted billing restriction; approved staging target;
 authorized live AI quality check if required. These do not block independent code.
+
+Latest checkpoint: billing/operations 85 tests passed in45.038s, including actual
+daemon settlement/restart and old-writer insertion after migration0003. Script
+suite21 passed in0.138s; Ruff and diff whitespace passed. New core image
+0a0d1caa3eae7f77da2fff88d2867c1ab64645bfa54783c5d882e691d0d21a84
+and SDK46402dc3924843abc3817104786f3ca18f4f4eea1913bb28144eed77c42d67c3
+built offline. Billing rollout passed; all seven isolated services healthy,
+including disabled-by-default billing worker. Rollout receipt:
+artifacts/completion-billing-runtime-rollout.log. No live provider requests.
+
+First current seven-image scan attempted with verified official DB, but each
+archive catalog failed with Windows mount read 'cannot allocate memory'. Receipts
+artifacts/completion-first-scans are BLOCKED, not clean vulnerability results.
+Retry with explicit2GiB/Go768MiB also failed; diagnose Docker-native archive
+storage next without changing freshness/severity policy. Official DB transfer is
+resolved. Continue retention implementation after focused billing commit; then
+integrated recovery/load/browser/security verification, publication and exact CI.

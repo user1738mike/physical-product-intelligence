@@ -3,6 +3,7 @@ import uuid
 from django.conf import settings
 from django.db import models
 from django.db.models import F, Q
+from django.db.models.functions import Now
 from django.utils import timezone
 
 from products.models import Snapshot
@@ -116,6 +117,7 @@ class PaymentOperation(models.Model):
     external_ref = models.CharField(max_length=120, default="")
     provider_version = models.PositiveIntegerField(default=0)
     created_at = models.DateTimeField(default=timezone.now)
+    next_check_at = models.DateTimeField(default=timezone.now, db_default=Now(), db_index=True)
 
     class Meta:
         constraints = [
@@ -159,6 +161,7 @@ class Inbox(models.Model):
     lease = models.UUIDField(null=True)
     leased_at = models.DateTimeField(null=True)
     received_at = models.DateTimeField(default=timezone.now)
+    next_check_at = models.DateTimeField(default=timezone.now, db_default=Now(), db_index=True)
 
     class Meta:
         constraints = [

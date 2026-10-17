@@ -9,6 +9,7 @@ import uuid
 from datetime import timedelta
 from unittest.mock import patch
 
+from django.contrib.auth import get_user_model
 from django.core.management import call_command
 from django.core.management.base import CommandError
 from django.db import connection
@@ -134,6 +135,21 @@ class ProcessorTests(Fixture, TransactionTestCase):
             result = cycle(self.owner)
         self.assertEqual(result["failures"], 1)
         self.assertNotIn("secret", str(result))
+
+    def test_operator_revocation_stops_later_items_in_the_same_cycle(self):
+        self.delivery()
+        assessments.assess(self.owner, self.org.pk, self.assessment_data())
+        worker = get_user_model().objects.create_user("revoked-worker", is_staff=True)
+
+        def sender(*args):
+            get_user_model().objects.filter(pk=worker.pk).update(is_active=False)
+            return 204, None
+
+        with patch("integrations.transport.send", side_effect=sender) as send:
+            with self.assertRaises(PermissionDenied):
+                cycle(worker)
+        self.assertEqual(send.call_count, 1)
+        self.assertEqual(Delivery.objects.filter(state="delivered").count(), 1)
 
     def test_real_daemon_restarts_and_stops_cleanly(self):
         env = {
