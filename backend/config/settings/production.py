@@ -1,4 +1,6 @@
+import base64
 import ipaddress
+import json
 import os
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -64,7 +66,41 @@ for cidr in TRUSTED_PROXY_CIDRS:
             "Trusted proxy CIDRs must be explicit restricted networks"
         ) from None
 READINESS_PRIVATE_STORAGE = True
+if (
+    os.environ.get("BILLING_PROVIDER", "disabled") != "disabled"
+    or os.environ.get("BILLING_SIMULATOR_ENABLED", "false").lower() != "false"
+):
+    raise ImproperlyConfigured(
+        "Payment collection is unconfigured; production simulators are prohibited"
+    )
 READINESS_DATABASE_ROLE = True
+if os.environ.get("INTEGRATION_TEST_TRANSPORT", "false").lower() != "false":
+    raise ImproperlyConfigured("Production integration test transports are prohibited")
+INTEGRATION_OUTBOUND_ENABLED = os.environ.get("INTEGRATION_OUTBOUND_ENABLED", "false") == "true"
+INTEGRATION_ALLOWED_HOSTS = csv("INTEGRATION_ALLOWED_HOSTS")
+INTEGRATION_SIGNING_CURRENT = os.environ.get("INTEGRATION_SIGNING_CURRENT", "v1")
+try:
+    INTEGRATION_SIGNING_KEYS = json.loads(os.environ.get("INTEGRATION_SIGNING_KEYS", "{}"))
+    if not isinstance(INTEGRATION_SIGNING_KEYS, dict) or any(
+        not isinstance(k, str)
+        or not isinstance(v, str)
+        or not 32 <= len(base64.b64decode(v, validate=True)) <= 64
+        or base64.b64decode(v, validate=True).startswith(b"synthetic-")
+        for k, v in INTEGRATION_SIGNING_KEYS.items()
+    ):
+        raise ValueError()
+    if len(INTEGRATION_SIGNING_KEYS) > 3 or any(
+        not key.isalnum() for key in INTEGRATION_SIGNING_KEYS
+    ):
+        raise ValueError()
+    if INTEGRATION_OUTBOUND_ENABLED and (
+        not INTEGRATION_ALLOWED_HOSTS or INTEGRATION_SIGNING_CURRENT not in INTEGRATION_SIGNING_KEYS
+    ):
+        raise ValueError()
+except (ValueError, TypeError):
+    raise ImproperlyConfigured(
+        "Outbound integrations require dedicated valid signing configuration and approved hosts"
+    ) from None
 INGESTION_ALLOW_UNSCANNED = False
 SECURE_SSL_REDIRECT = True
 SESSION_COOKIE_SECURE = True

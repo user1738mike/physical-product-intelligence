@@ -3,6 +3,13 @@
 Multi-tenant SaaS platform that builds evidence-backed digital profiles of physical products and evaluates their compatibility with handling, inspection, packaging, and automation workflows.
 # Physical Product Intelligence Cloud
 
+Current v1 completion work is tracked in [completion plan](docs/completion-plan.md),
+[resumption state](docs/completion-state.md) and [acceptance status](docs/final-acceptance-report.md).
+The phase descriptions below are historical; later reports identify implemented
+commercial, billing and customer integration boundaries. Automatic maintenance
+uses the [processor service](docs/processor-operations.md). Customer password
+changes and operator-assisted recovery are described in [account recovery](docs/account-recovery.md).
+
 A foundation for a multi-tenant product and packaging assessment platform, initially intended for warehouse robotics integrators. Phase 1 provides operational endpoints and a public identification page; Phase 2 adds session authentication, organizations, memberships, tenant authorization and audit history. Phase 3 adds structured product records, immutable packaging revisions, measurements and evidence provenance through tenant-scoped APIs. Phase 4 adds private CSV/XLSX uploads, bounded labeled PDF/TXT extraction, review candidates and transactional catalog application. Phase 5 adds equipment specifications, immutable rule versions and explainable recorded-input compatibility assessments. Architecture and requirements are in [docs](docs/product-requirements.md).
 
 ## Local development (PowerShell, repository root)

@@ -45,4 +45,93 @@ class Command(BaseCommand):
                     else (sql.Identifier(role),)
                 )
                 cursor.execute(sql.SQL(template).format(*ids))
+            for table in (
+                "plan",
+                "account",
+                "usage",
+                "assignmentevent",
+                "reservationevent",
+                "operatorevent",
+                "assignment",
+            ):
+                cursor.execute(
+                    sql.SQL("REVOKE UPDATE, DELETE ON {} FROM {}").format(
+                        sql.Identifier("commercial_" + table), sql.Identifier(role)
+                    )
+                )
+            cursor.execute(
+                sql.SQL("REVOKE INSERT, DELETE ON accounts_recoverygrant FROM {}").format(
+                    sql.Identifier(role)
+                )
+            )
+            cursor.execute(
+                sql.SQL("REVOKE INSERT ON commercial_operatorevent FROM {}").format(
+                    sql.Identifier(role)
+                )
+            )
+            for table in (
+                "billingaccount",
+                "price",
+                "statement",
+                "paymentoperation",
+                "inbox",
+                "moneyevent",
+                "allocation",
+                "accessgrant",
+                "statementadjustment",
+                "billingaudit",
+                "gatewayobject",
+                "gatewaycall",
+            ):
+                cursor.execute(
+                    sql.SQL("REVOKE UPDATE, DELETE ON {} FROM {}").format(
+                        sql.Identifier("billing_" + table), sql.Identifier(role)
+                    )
+                )
+            for table in (
+                "price",
+                "statement",
+                "moneyevent",
+                "allocation",
+                "accessgrant",
+                "statementadjustment",
+                "gatewayobject",
+                "gatewaycall",
+            ):
+                cursor.execute(
+                    sql.SQL("REVOKE INSERT ON {} FROM {}").format(
+                        sql.Identifier("billing_" + table), sql.Identifier(role)
+                    )
+                )
+            for table in ("event", "planpolicy", "deliveryattempt"):
+                cursor.execute(
+                    sql.SQL("REVOKE UPDATE, DELETE ON {} FROM {}").format(
+                        sql.Identifier("integrations_" + table), sql.Identifier(role)
+                    )
+                )
+            for table in ("planpolicy", "deliveryattempt"):
+                cursor.execute(
+                    sql.SQL("REVOKE INSERT ON {} FROM {}").format(
+                        sql.Identifier("integrations_" + table), sql.Identifier(role)
+                    )
+                )
+            for table in ("credential", "destination", "delivery"):
+                cursor.execute(
+                    sql.SQL("REVOKE DELETE ON {} FROM {}").format(
+                        sql.Identifier("integrations_" + table), sql.Identifier(role)
+                    )
+                )
+        actor_name = os.environ.get("PPI_PROCESSOR_ACTOR", "")
+        if actor_name:
+            from django.contrib.auth import get_user_model
+
+            if not re.fullmatch(r"ppi-processor-[a-f0-9]{10}", actor_name):
+                raise CommandError("Invalid isolated processor identity")
+            actor, created = get_user_model().objects.get_or_create(username=actor_name)
+            if created:
+                actor.is_staff = True
+                actor.set_unusable_password()
+                actor.save(update_fields=["is_staff", "password"])
+            elif not actor.is_active or not actor.is_staff or actor.has_usable_password():
+                raise CommandError("Existing processor identity cannot be repurposed")
         self.stdout.write("rehearsal_runtime_grants_current")

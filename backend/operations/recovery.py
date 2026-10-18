@@ -14,12 +14,32 @@ from django.core.files.storage import storages
 from django.db import connection
 
 
-def counts():
+def counts(labels=None):
     return {
         m._meta.label: m.objects.count()
         for m in apps.get_models()
-        if m._meta.label != "operations.RateBucket"
+        if m._meta.label != "operations.RateBucket" and (labels is None or m._meta.label in labels)
     }
+
+
+def retained_sources():
+    from ingestion.models import ImportJob, SourceRemoval
+
+    jobs = ImportJob.objects.filter(mode="deterministic")
+    # Historical bundles predate retention tables; verify their original files
+    # before the release helper applies controlled forward migrations.
+    if SourceRemoval._meta.db_table not in connection.introspection.table_names():
+        return jobs, []
+    if SourceRemoval.objects.filter(state__in=["claimed", "needs_review"]).exists():
+        raise ValueError("Reconcile uncertain source removals before backup/restore verification")
+    removed = list(
+        jobs.filter(removals__state="removed")
+        .order_by("pk")
+        .values("id", "storage_key", "sha256", "size")
+    )
+    return jobs.exclude(removals__state="removed"), [
+        {**item, "id": str(item["id"])} for item in removed
+    ]
 
 
 def safe_path(root, key):
@@ -71,14 +91,14 @@ def backup(output, confirmed, executable):
     dump = root / "database.dump"
     pg_tool(executable, ["--format=custom", "--no-owner", "--no-acl", "--file", str(dump)])
     dump.chmod(0o600)
-    from ingestion.models import ImportJob
-    from ingestion.storage import read_upload
+    from ingestion.storage import read_stored_bytes
 
     uploads = []
     private = root / "private"
     private.mkdir(mode=0o700)
-    for job in ImportJob.objects.filter(mode="deterministic").iterator():
-        data = read_upload(job)
+    jobs, removed = retained_sources()
+    for job in jobs.iterator():
+        data = read_stored_bytes(job)
         target = safe_path(private, job.storage_key)
         target.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
         with target.open("xb") as stream:
@@ -92,6 +112,7 @@ def backup(output, confirmed, executable):
         "counts": counts(),
         "dump_sha256": file_sha256(dump),
         "uploads": uploads,
+        "removed_sources": removed,
     }
     path = root / "manifest.json"
     with path.open("x", encoding="utf-8") as stream:
@@ -134,18 +155,23 @@ def restore(bundle, confirmed, media_target, executable):
     target.mkdir(mode=0o700, parents=True)
     pg_tool(executable, ["--exit-on-error", "--no-owner", "--no-acl", str(dump)])
     connection.close()
-    if counts() != manifest["counts"]:
+    if counts(manifest["counts"]) != manifest["counts"]:
         raise ValueError("Restored record counts differ; target remains quarantined")
     for item in manifest["uploads"]:
         path = safe_path(target, item["key"])
         path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
         shutil.copyfile(safe_path(root / "private", item["key"]), path)
         path.chmod(0o600)
-    from ingestion.models import ImportJob
-    from ingestion.storage import read_upload
+    from ingestion.storage import read_stored_bytes
 
-    for job in ImportJob.objects.filter(mode="deterministic").iterator():
-        read_upload(job)
+    jobs, removed = retained_sources()
+    if removed != manifest.get("removed_sources", []):
+        raise ValueError("Restored source removal history differs; target remains quarantined")
+    for item in removed:
+        if safe_path(target, item["storage_key"]).exists():
+            raise ValueError("Removed source was unexpectedly restored")
+    for job in jobs.iterator():
+        read_stored_bytes(job)
     return {
         "status": "isolated_restore_verified",
         "models": len(manifest["counts"]),

@@ -1,0 +1,12 @@
+# Include after compose.production.yaml, compose.processors.yaml and compose.host.yaml.
+services:
+  processors:
+    environment:
+      POSTGRES_SSLROOTCERT: /certs/database-ca.crt
+      CLAMD_HOST: scanner
+    volumes: ["${PPI_DATABASE_CA_FILE:?Set the approved host database CA file}:/certs/database-ca.crt:ro"]
+  billing_processor:
+    environment:
+      POSTGRES_SSLROOTCERT: /certs/database-ca.crt
+      CLAMD_HOST: scanner
+    volumes: ["${PPI_DATABASE_CA_FILE:?Set the approved host database CA file}:/certs/database-ca.crt:ro"]

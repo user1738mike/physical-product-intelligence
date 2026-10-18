@@ -12,6 +12,7 @@ from django.db import connection, transaction
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
+from commercial import services as commercial
 from products import services as catalog
 from products import workflows
 
@@ -53,6 +54,8 @@ def start(actor, org_id, source_id, values):
         if old.extraction["request_sha256"] != fingerprint:
             raise catalog.Conflict("Request identifier already names different extraction targets.")
         return old
+    commercial.require(source.organization, "ai_extraction")
+    commercial.require(source.organization, "evidence_import")
     ready, category = ai_provider.availability()
     if not ready:
         raise Unavailable(category)
@@ -171,6 +174,13 @@ def claim(actor, org, job_id, values):
     ):
         raise catalog.Conflict("Another extraction is processing; wait or cancel it first.")
     lease = str(uuid.uuid4())
+    commercial.require(job.organization, "ai_extraction")
+    if job.status == "processing":
+        # The same locked job is being fenced before its expired attempt is released.
+        commercial.release(job.organization, job.pk)
+    commercial.reserve(
+        job.organization, "extractions", job.pk, job.extraction["request_sha256"], fence=lease
+    )
     job.status, job.started_at, job.errors = "processing", timezone.now(), []
     job.extraction.update(
         lease=lease,
@@ -236,6 +246,7 @@ def failed(actor, org, job_id, lease, category, retryable, duration):
     if job.status != "processing" or job.extraction.get("lease") != lease:
         return job
     job.status, job.completed_at = "failed", timezone.now()
+    commercial.release(job.organization, job.pk)
     job.errors = [
         {
             "code": category,
@@ -267,6 +278,7 @@ def finish(actor, org, job_id, lease, segments, items, usage, duration):
     if job.status != "processing" or job.extraction.get("lease") != lease:
         return job
     source_valid(job)
+    commercial.finalize(job.organization, "extractions", job.pk, actor, fence=lease)
     product = catalog.product_in(job.organization, job.extraction["product_id"])
     catalog.require_active(product)
     package = (

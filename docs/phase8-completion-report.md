@@ -1,5 +1,7 @@
 # Phase 8 — Production deployment and release validation
 
+**Follow-up (2026-10-16):** [Phase 8B closure report](phase8b-release-closure-report.md) preserves this historical evidence and records new real-browser acceptance, current frontend advisory results, the observed GitHub billing startup lock and a concrete target handoff. The Phase8 work was subsequently committed by the user as2cdb78e; statements below describe the earlier execution state. Production release remains blocked.
+
 This report records a synthetic local rehearsal, not a remote deployment. No live AI requests, Git staging/commit/push, image publication, DNS change or purchase was performed. Final evidence is recorded in the protected local `artifacts/phase8-final` directory; publish only reviewed aggregate reports and the sanitized release manifest, never its env files or synthetic login context.
 
 ## A. Initial state and capability audit

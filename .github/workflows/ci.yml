@@ -7,10 +7,10 @@ permissions:
   contents: read
 jobs:
   backend:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     services:
       postgres:
-        image: postgres:17.11-bookworm
+        image: postgres:17.11-trixie@sha256:2d2b8998d31037bf721cfdf764d76ba74171b4fab3431b7f72c27c56ddbdf9e3
         env:
           POSTGRES_DB: ppi
           POSTGRES_USER: ppi
@@ -47,13 +47,13 @@ jobs:
       - run: python manage.py makemigrations --check --dry-run
       - run: python manage.py migrate --noinput
       - run: python manage.py migrate --check
-      - run: python manage.py test accounts organizations operations products ingestion compatibility
+      - run: python manage.py test accounts organizations operations products ingestion compatibility commercial billing integrations
       - run: python manage.py evaluate_extraction
       - run: python manage.py check_ai_provider
       - run: python -m unittest discover -s ../scripts -p 'test_*.py'
       - run: python manage.py spectacular --validate --fail-on-warn --file /tmp/openapi.yaml
   frontend:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: frontend
@@ -74,7 +74,7 @@ jobs:
         env:
           NEXT_TELEMETRY_DISABLED: "1"
   compose-smoke:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     env:
       AI_EXTRACTION_ENABLED: "false"
       COMPOSE_FILE: compose.yaml:compose.runtime-check.yaml
@@ -91,7 +91,7 @@ jobs:
       - run: docker compose exec -T backend python manage.py migrate --noinput
       - run: docker compose exec -T backend python manage.py migrate --check
       - run: docker compose up --build --wait --wait-timeout 240
-      - run: docker compose exec -T backend python manage.py test accounts organizations operations products ingestion compatibility --settings=config.settings.test
+      - run: docker compose exec -T backend python manage.py test accounts organizations operations products ingestion compatibility commercial billing integrations --settings=config.settings.test
       - run: python scripts/phase2_smoke.py --allow-create-test-data
       - run: python scripts/phase3_smoke.py --allow-create-test-data
       - run: python scripts/smoke.py
@@ -100,7 +100,16 @@ jobs:
       - name: Scan production frontend image
         run: |
           docker save -o /tmp/frontend.tar ppi-frontend-check
-          docker run --rm -v /tmp:/scan:ro anchore/grype:v0.120.1 docker-archive:/scan/frontend.tar --fail-on high
+          docker image inspect ppi-frontend-check --format '{{.Id}}' > /tmp/frontend-image-id.txt
+          docker run --rm -e GRYPE_DB_MAX_ALLOWED_BUILT_AGE=48h -v /tmp:/scan:ro anchore/grype:v0.120.1 docker-archive:/scan/frontend.tar --output json --fail-on high > /tmp/frontend-vulnerabilities.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: frontend-image-security
+          path: |
+            /tmp/frontend-vulnerabilities.json
+            /tmp/frontend-image-id.txt
+          if-no-files-found: warn
       - name: Container logs on failure
         if: failure()
         run: docker compose logs --no-color
@@ -108,9 +117,11 @@ jobs:
         if: always()
         run: docker compose down
   backend-images:
-    runs-on: ubuntu-latest
+    name: backend-images-${{ matrix.ai }}
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     strategy:
+      fail-fast: false
       matrix:
         ai: ["false", "true"]
     steps:
@@ -121,4 +132,92 @@ jobs:
       - name: Scan runtime image (high/critical findings block release)
         run: |
           docker save -o /tmp/backend.tar ppi-backend-check
-          docker run --rm -v /tmp:/scan:ro anchore/grype:v0.120.1 docker-archive:/scan/backend.tar --fail-on high
+          docker image inspect ppi-backend-check --format '{{.Id}}' > /tmp/backend-image-id.txt
+          docker run --rm -e GRYPE_DB_MAX_ALLOWED_BUILT_AGE=48h -v /tmp:/scan:ro anchore/grype:v0.120.1 docker-archive:/scan/backend.tar --output json --fail-on high > /tmp/backend-vulnerabilities.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: backend-image-security-sdk-${{ matrix.ai }}
+          path: |
+            /tmp/backend-vulnerabilities.json
+            /tmp/backend-image-id.txt
+          if-no-files-found: warn
+  infrastructure-security:
+    name: infrastructure-security-${{ matrix.name }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: postgres
+            image: postgres@sha256:2d2b8998d31037bf721cfdf764d76ba74171b4fab3431b7f72c27c56ddbdf9e3
+          - name: ingress
+            image: ppi-release-ingress
+          - name: scanner
+            image: clamav/clamav@sha256:638d90201ee7ee6a82d249a2fc23b132e578673b5f1f2766852b127676ca1ef6
+    steps:
+      - uses: actions/checkout@v4
+      - if: matrix.name != 'ingress'
+        run: docker pull '${{ matrix.image }}'
+      - if: matrix.name == 'ingress'
+        run: docker build -f deploy/ingress.Dockerfile -t ppi-release-ingress deploy
+      - name: Scan exact infrastructure artifact
+        run: |
+          docker save -o /tmp/image.tar '${{ matrix.image }}'
+          docker run --rm -e GRYPE_DB_MAX_ALLOWED_BUILT_AGE=48h -v /tmp:/scan:ro anchore/grype:v0.120.1 docker-archive:/scan/image.tar --output json --fail-on high > /tmp/vulnerabilities.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: infrastructure-security-${{ matrix.name }}
+          path: /tmp/vulnerabilities.json
+          if-no-files-found: warn
+  browser-acceptance:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13.16'
+      - name: Build actual production applications and isolated browser
+        run: |
+          docker build -t physical-product-intelligence-backend backend
+          docker build --target production -t physical-product-intelligence-frontend frontend
+          docker build -t ppi-phase8b-browser browser-tests
+          docker pull postgres:17.11-trixie@sha256:2d2b8998d31037bf721cfdf764d76ba74171b4fab3431b7f72c27c56ddbdf9e3
+          docker build -f deploy/ingress.Dockerfile -t ppi-release-ingress deploy
+          docker pull clamav/clamav:stable
+      - name: Create isolated HTTPS rehearsal
+        run: |
+          python scripts/release.py prepare --directory artifacts/browser-ci --https-port 18443 --processors --ingress-image ppi-release-ingress
+          python scripts/release.py start --directory artifacts/browser-ci
+      - name: Create synthetic login context using real session and business APIs
+        env:
+          PPI_SMOKE_ORIGIN: https://127.0.0.1:18443
+          PPI_SMOKE_CA: artifacts/browser-ci/ca.crt
+          PPI_SMOKE_FIXTURES: recorded
+          PPI_REHEARSAL_CONTEXT: artifacts/browser-ci/journey.json
+        run: |
+          python scripts/phase2_smoke.py --allow-create-test-data
+          python scripts/phase3_smoke.py --allow-create-test-data
+      - name: Real browser with private test-only CA trust and sandbox
+        run: python scripts/browser_acceptance.py --directory artifacts/browser-ci --output artifacts/browser-results --commercial-fixtures --billing-fixtures --integration-fixtures --recovery-fixtures --retention-fixtures
+      - name: Signed local integration and revocation demonstration
+        run: python scripts/integration_demo.py --directory artifacts/browser-ci --output artifacts/integration-demo-ci
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: browser-acceptance-sanitized
+          path: |
+            artifacts/browser-results/execution.json
+            artifacts/browser-results/acceptance.json
+            artifacts/browser-results/browser.json
+            artifacts/browser-results/browser.log
+            artifacts/browser-results/compatible-history.png
+            artifacts/browser-results/billing-settled.png
+            artifacts/browser-results/billing-processing.json
+            artifacts/browser-results/integrations-management.png
+            artifacts/browser-results/source-retention.png
+            artifacts/integration-demo-ci/receipt.json
+          if-no-files-found: warn

@@ -120,7 +120,13 @@ def available_port(port):
             ) from None
 
 
-def prepare(folder, port=18443):
+def prepare(
+    folder,
+    port=18443,
+    processors=False,
+    ingress_image="nginx:1.30.6",
+    postgres_image="postgres:17.11-trixie",
+):
     available_port(port)
     if folder.exists():
         raise ReleaseError("Preparation requires a new exclusive directory")
@@ -151,6 +157,8 @@ def prepare(folder, port=18443):
         "AI_EXTRACTION_ENABLED": "false",
         "PPI_REHEARSAL_FIXTURES": "synthetic-only",
     }
+    if processors:
+        common["PPI_PROCESSOR_ACTOR"] = "ppi-processor-" + token
     runtime_role = "ppi_runtime_" + token
     envfile(
         folder / "runtime.env",
@@ -181,8 +189,8 @@ def prepare(folder, port=18443):
     images = {
         "backend": image("physical-product-intelligence-backend"),
         "frontend": image("physical-product-intelligence-frontend"),
-        "postgres": image("postgres:17.11-bookworm"),
-        "ingress": image("nginx:1.30.4"),
+        "postgres": image(postgres_image),
+        "ingress": image(ingress_image),
         "scanner": image("clamav/clamav:stable"),
     }
     values = {"PPI_" + key.upper() + "_IMAGE": value for key, value in images.items()}
@@ -196,10 +204,28 @@ def prepare(folder, port=18443):
             "PPI_REHEARSAL_STATE_DIR": folder.as_posix(),
         }
     )
+    if processors:
+        values["PPI_PROCESSOR_ACTOR"] = common["PPI_PROCESSOR_ACTOR"]
+        write_json(
+            folder / "processors.json",
+            {
+                "services": {
+                    "processors": {
+                        "environment": {"DJANGO_SETTINGS_MODULE": "config.settings.rehearsal"},
+                        "volumes": ["rehearsal_tls:/certs:ro"],
+                    },
+                    "billing_processor": {
+                        "environment": {"DJANGO_SETTINGS_MODULE": "config.settings.rehearsal"},
+                        "volumes": ["rehearsal_tls:/certs:ro"],
+                    },
+                }
+            },
+        )
     envfile(folder / "compose.env", values)
     manifest = {
         "format": "ppi-release-v1",
         "target": "isolated-local-rehearsal",
+        "processors_enabled": processors,
         "project": "ppi-rehearsal-" + token,
         "database": common["POSTGRES_DB"],
         "created_at": datetime.now(UTC).isoformat(),
@@ -235,6 +261,8 @@ def compose(folder, manifest):
         "-f",
         str(folder / "network.json"),
     ]
+    if manifest.get("processors_enabled"):
+        command += ["-f", "compose.processors.yaml", "-f", str(folder / "processors.json")]
     if manifest.get("active_override"):
         name = manifest["active_override"]
         if not re.fullmatch(r"app-[a-f0-9]{12}\.json", name):
@@ -243,7 +271,7 @@ def compose(folder, manifest):
     return command
 
 
-def runtime_probe(folder, command, extra=None):
+def runtime_probe(folder, command, extra=None, context="/release-state/journey.json"):
     values = dict(line.split("=", 1) for line in (folder / "runtime.env").read_text().splitlines())
     process_env = {**os.environ, "POSTGRES_PASSWORD": values["POSTGRES_PASSWORD"]}
     output = run(
@@ -263,7 +291,7 @@ def runtime_probe(folder, command, extra=None):
             "manage.py",
             "verify_release_access",
             "--context",
-            "/release-state/journey.json",
+            context,
         ],
         env=process_env,
     )
@@ -281,9 +309,13 @@ def completed_backup(manifest):
     return records[-1]["bundle"]
 
 
-def operate(folder, action, previous_image=None):
+def operate(folder, action, previous_image=None, previous_frontend_image=None):
     manifest = json.loads((folder / "release.json").read_text(encoding="utf-8"))
     command = compose(folder, manifest)
+    writers = ["edge", "frontend", "backend"] + (
+        ["processors", "billing_processor"] if manifest.get("processors_enabled") else []
+    )
+    stop_timeout = 300 if manifest.get("processors_enabled") else 120
     with exclusive(folder):
         run(command + ["config", "--quiet"])
         started = time.monotonic()
@@ -334,33 +366,41 @@ def operate(folder, action, previous_image=None):
                 # Export public CA only. Private keys never leave their protected named volume.
                 run(command + ["cp", "db:/certs/ca.crt", str(folder / "ca.crt")])
             elif action == "backup":
-                run(command + ["stop", "edge", "frontend", "backend"], timeout=120)
-                bundle = "/var/lib/ppi/backups/" + secrets.token_hex(6)
-                receipt = run(
-                    command
-                    + [
-                        "run",
-                        "--rm",
-                        "--no-deps",
-                        "-T",
-                        "migration",
-                        "python",
-                        "manage.py",
-                        "backup_bundle",
-                        "--maintenance-window",
-                        "--confirm-database",
-                        manifest["database"],
-                        "--output",
-                        bundle,
-                    ]
-                )
-                event.update({"bundle": bundle, "receipt": json.loads(receipt)})
-                run(
-                    command + ["up", "-d", "--wait", "--wait-timeout", "120"],
-                    timeout=180,
-                )
+                # Resume only writers that were actually running. A new recipe
+                # may introduce a service whose command/schema is not available
+                # in the current application image until the subsequent rollout.
+                running = run(command + ["ps", "--status", "running", "--services"]).splitlines()
+                resume = [name for name in writers if name in running]
+                try:
+                    run(command + ["stop", *writers], timeout=stop_timeout)
+                    bundle = "/var/lib/ppi/backups/" + secrets.token_hex(6)
+                    receipt = run(
+                        command
+                        + [
+                            "run",
+                            "--rm",
+                            "--no-deps",
+                            "-T",
+                            "migration",
+                            "python",
+                            "manage.py",
+                            "backup_bundle",
+                            "--maintenance-window",
+                            "--confirm-database",
+                            manifest["database"],
+                            "--output",
+                            bundle,
+                        ]
+                    )
+                    event.update({"bundle": bundle, "receipt": json.loads(receipt)})
+                finally:
+                    if resume:
+                        run(
+                            command + ["up", "-d", "--wait", "--wait-timeout", "120", *resume],
+                            timeout=180,
+                        )
             elif action == "restart":
-                run(command + ["stop"], timeout=120)
+                run(command + ["stop"], timeout=stop_timeout)
                 run(
                     command + ["up", "-d", "--wait", "--wait-timeout", "240"],
                     timeout=300,
@@ -416,6 +456,25 @@ def operate(folder, action, previous_image=None):
                     ]
                 )
                 event["receipt"] = json.loads(output.splitlines()[-1])
+                # Older protected backups may precede additive application
+                # migrations. Apply them only to the newly created restore DB.
+                run(
+                    command
+                    + [
+                        "run",
+                        "--rm",
+                        "--no-deps",
+                        "-T",
+                        *extra,
+                        "migration",
+                        "python",
+                        "manage.py",
+                        "release_migrate",
+                        "--confirm-database",
+                        target,
+                    ]
+                )
+                event["restore_forward_migrations"] = True
                 run(
                     command
                     + [
@@ -435,6 +494,13 @@ def operate(folder, action, previous_image=None):
                 event["private_root"] = private
             elif action in {"rollout", "rollback"}:
                 completed_backup(manifest)
+                if action == "rollback" and (
+                    not previous_frontend_image
+                    or not re.fullmatch(r"sha256:[a-f0-9]{64}", previous_frontend_image)
+                ):
+                    raise ReleaseError(
+                        "Rollback requires an explicit reviewed compatible frontend image"
+                    )
                 candidate = image("physical-product-intelligence-backend")
                 selected = previous_image if action == "rollback" else candidate
                 if not selected or not re.fullmatch(r"sha256:[a-f0-9]{64}", selected):
@@ -452,8 +518,12 @@ def operate(folder, action, previous_image=None):
                     ),
                     encoding="utf-8",
                 )
-                if action == "rollout":
-                    frontend = image("physical-product-intelligence-frontend")
+                if action == "rollout" or previous_frontend_image:
+                    frontend = (
+                        image("physical-product-intelligence-frontend")
+                        if action == "rollout"
+                        else image(previous_frontend_image)
+                    )
                     env_path.write_text(
                         re.sub(
                             r"(?m)^PPI_FRONTEND_IMAGE=.*$",
@@ -479,7 +549,7 @@ def operate(folder, action, previous_image=None):
                         }
                     },
                 )
-                run(command + ["stop", "edge", "frontend", "backend"], timeout=120)
+                run(command + ["stop", *writers], timeout=stop_timeout)
                 if action == "rollout":
                     run(
                         command
@@ -509,6 +579,11 @@ def operate(folder, action, previous_image=None):
                         "180",
                         "backend",
                         "frontend",
+                        *(
+                            ["processors", "billing_processor"]
+                            if manifest.get("processors_enabled")
+                            else []
+                        ),
                     ],
                     timeout=240,
                 )
@@ -594,15 +669,33 @@ def main():
     parser.add_argument("--directory", type=Path, required=True)
     parser.add_argument("--https-port", type=int, default=18443)
     parser.add_argument("--previous-image")
+    parser.add_argument("--previous-frontend-image")
+    parser.add_argument(
+        "--ingress-image",
+        default="nginx:1.30.6",
+        help="Reviewed local ingress image for a new rehearsal",
+    )
+    parser.add_argument(
+        "--postgres-image",
+        default="postgres:17.11-trixie",
+        help="Reviewed PostgreSQL image; new empty rehearsal only",
+    )
+    parser.add_argument(
+        "--processors",
+        action="store_true",
+        help="Include supervised processors in a new isolated rehearsal",
+    )
     args = parser.parse_args()
     folder = args.directory.resolve()
     if not folder.is_relative_to(ROOT / "artifacts"):
         parser.error("Rehearsal state must stay under this checkout's ignored artifacts directory")
     try:
         result = (
-            prepare(folder, args.https_port)
+            prepare(
+                folder, args.https_port, args.processors, args.ingress_image, args.postgres_image
+            )
             if args.action == "prepare"
-            else operate(folder, args.action, args.previous_image)
+            else operate(folder, args.action, args.previous_image, args.previous_frontend_image)
         )
         print(
             json.dumps(

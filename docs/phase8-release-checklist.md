@@ -1,5 +1,45 @@
 # Phase 8 release checklist
 
+## Phase 10 candidate gates
+
+- Rebuild/identify the current integration-enabled artifacts; do not apply earlier scan, hosted CI or browser evidence to changed images.
+- Verify credential issuer revocation, finite plan policy, shared admission and immutable export fidelity on the exact target.
+- Provision a dedicated versioned signing root securely only after approval; approve exact destination hosts and isolated egress/DNS/firewall controls. Test real outbound TLS and receiver coordination on approved staging.
+- Verify runtime integration grants and append-only protections, restricted dispatcher owner connection, bounded cadence, retention/legal hold and backup/restore under target roles.
+- Retain valid Grype database/scans, exact-SHA hosted CI, approved staging host/domain/region/budget, payment-provider verification and live collection gates. Local loopback delivery is not real customer destination acceptance.
+- Use [Phase 10 actual results](phase10-completion-report.md) and [delivery operations](webhook-delivery.md); no production deployment is approved.
+
+## Phase 9B candidate
+
+- [ ] Publish only after separate authorization and obtain passing exact-SHA hosted CI.
+- [ ] Obtain fresh valid Grype results for the new images; no earlier image acceptance transfers.
+- [ ] Approve target/domain/region/budget and validate staging migrations, runtime grants, tenant and financial flows.
+- [ ] Before real collection: select/approve provider and merchant account, commercial/currency/tax/refund/grace policy, official adapter verification and separately authorized sandbox testing.
+
+Local simulator results are distinguished from real collection in [the Phase 9B report](phase9b-completion-report.md). No production release is declared.
+
+## Phase 9A candidate
+
+- [ ] Obtain passing exact-candidate hosted CI after the account billing lock is resolved.
+- [ ] Obtain acceptable fresh Grype DB and assess the new Phase 9A images; old images/results cannot clear this gate.
+- [ ] Approve staging host/domain/region/exposure/budget, separately authorize deployment, then validate migrations, exact runtime grants and commercial/tenant/browser flows.
+
+Phase 9A local verification and new artifact identities are recorded in [its report](phase9a-completion-report.md). Historical Phase 8/8B manifests remain unchanged. Manual plan assignments and usage accounting do not implement payment collection or approve commercial launch.
+
+## Phase 8B follow-up — 2026-10-16
+
+- [x] Reconcile the user's subsequent clean Phase8 commit2cdb78e with the retained dirty-build manifest and verify prior receipt hashes.
+- [x] Complete a real sandboxed Chromium journey through private-CA-verified HTTPS, including download byte integrity, reviewed extraction, all assessment outcomes and tenant/role/revocation/logout denials.
+- [x] Run202 backend/37 frontend/15 script tests and18 mocked evaluation cases; check migrations/schema, full frontend build and deployment syntax.
+- [x] Obtain a current frontend npm advisory result in the Linux runtime: zero reported findings; preserve the earlier native network failure separately.
+- [x] Diagnose hosted startup failure from GitHub's visible annotations: account billing lock; no billing changes made.
+- [x] Prepare one host overlay, protected configuration templates, exact deployment commands and a narrowly scoped proposed commit/push handoff.
+- [ ] Obtain valid fresh official Grype DB and passing reviewed image/backend dependency results; current seven-image inventory remains blocked.
+- [ ] Owner resolves the GitHub billing lock, authorizes publishing the reviewed Phase8B candidate, and verifies all exact-SHA hosted jobs.
+- [ ] Approve/provision the specific staging host/domain/region/exposure/budget and external secrets; execute separate staging acceptance before any production decision.
+
+See [the closure report](phase8b-release-closure-report.md) and [target handoff](phase8b-target-handoff.md). Local browser success does not check the actual staging/public TLS endpoint. Historical Phase8 checklist items below retain their original scope; unmet promotion gates remain required.
+
 Use this with the [deployment plan](phase8-deployment-plan.md), [actual report](phase8-completion-report.md) and [operations guide](deployment-and-operations.md). Checked items below concern the synthetic local rehearsal only. They do not approve a customer deployment.
 
 ## Local evidence

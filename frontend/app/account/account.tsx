@@ -11,6 +11,7 @@ import {
 } from "../../lib/api";
 import { mergeMemberships } from "../../lib/memberships";
 import AuthForm from "./auth-form";
+import PasswordForm from "./password-form";
 
 type AuthState =
   | { status: "loading" }
@@ -235,12 +236,22 @@ export default function Account() {
                     >
                       Open product catalog
                     </Link>
+                    <p>
+                      <Link href={`/organizations/${organization.id}/settings`}>
+                        Manage organization
+                      </Link>
+                    </p>
                   </div>
                 )}
                 {selectedMembership?.organization.is_active === false && (
                   <p>
                     This organization is suspended. Protected organization
-                    access is unavailable.
+                    access is unavailable.{" "}
+                    <Link
+                      href={`/organizations/${selectedMembership.organization.id}/settings`}
+                    >
+                      Organization settings
+                    </Link>
                   </p>
                 )}
               </>
@@ -274,6 +285,15 @@ export default function Account() {
             catalogs, evidence imports, equipment profiles and recorded-input
             assessments. Physical safety is not certified.
           </p>
+          <PasswordForm
+            onComplete={() => {
+              void refresh().then(() =>
+                setMessage(
+                  "Password updated. Sign in with your new password. Previous sessions and API credentials have been revoked.",
+                ),
+              );
+            }}
+          />
         </>
       )}
     </main>

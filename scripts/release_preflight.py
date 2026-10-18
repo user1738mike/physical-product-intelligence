@@ -10,6 +10,31 @@ from urllib.request import Request, urlopen
 
 from release import ROOT, run
 
+REQUIRED_JOBS = {
+    "backend",
+    "frontend",
+    "compose-smoke",
+    "browser-acceptance",
+    "backend-images-false",
+    "backend-images-true",
+    "infrastructure-security-postgres",
+    "infrastructure-security-ingress",
+    "infrastructure-security-scanner",
+}
+
+
+def hosted_jobs_passed(workflow, jobs, revision):
+    return (
+        workflow.get("head_sha") == revision
+        and workflow.get("status") == "completed"
+        and workflow.get("conclusion") == "success"
+        and len(jobs) == len(REQUIRED_JOBS)
+        and {job.get("name") for job in jobs} == REQUIRED_JOBS
+        and all(
+            job.get("status") == "completed" and job.get("conclusion") == "success" for job in jobs
+        )
+    )
+
 
 def validate(target, manifest):
     blocked = []
@@ -37,7 +62,7 @@ def validate(target, manifest):
     }:
         blocked.append("commercial_launch_decision_missing")
     if target.get("commercial_mode") == "paid_public_launch":
-        blocked.append("billing_entitlements_metering_not_implemented")
+        blocked.append("real_payment_adapter_merchant_prices_and_policy_not_verified")
     if manifest["source"]["dirty"] or run(["git", "status", "--porcelain"]):
         blocked.append("committed_clean_candidate_required")
     if manifest["source"]["revision"] != run(["git", "rev-parse", "HEAD"]):
@@ -92,12 +117,24 @@ def main():
                     if r["path"] == ".github/workflows/ci.yml"
                     and r["head_sha"] == manifest["source"]["revision"]
                 ]
-                if runs and runs[0]["status"] == "completed" and runs[0]["conclusion"] == "success":
+                jobs = []
+                if runs:
+                    jobs_url = f"https://api.github.com/repos/{repo}/actions/runs/{runs[0]['id']}/attempts/{runs[0]['run_attempt']}/jobs?per_page=100"
+                    with urlopen(
+                        Request(jobs_url, headers={"User-Agent": "ppi-release-preflight"}),
+                        timeout=15,
+                    ) as response:
+                        payload = json.load(response)
+                    jobs = payload["jobs"]
+                    if payload.get("total_count") != len(jobs):
+                        jobs = []
+                if runs and hosted_jobs_passed(runs[0], jobs, manifest["source"]["revision"]):
                     hosted = {
                         "url": runs[0]["html_url"],
                         "revision": runs[0]["head_sha"],
                         "status": "success",
                         "time": runs[0]["updated_at"],
+                        "required_jobs": sorted(job["name"] for job in jobs),
                     }
                 else:
                     blocked.append("hosted_ci_not_passed_for_candidate")

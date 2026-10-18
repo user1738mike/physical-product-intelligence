@@ -46,3 +46,37 @@ subprocess.run(
     check=True,
     timeout=30,
 )
+for unsafe in ({"BILLING_PROVIDER": "simulator"}, {"BILLING_SIMULATOR_ENABLED": "true"}):
+    result = subprocess.run(
+        [sys.executable, "manage.py", "check"],
+        cwd=ROOT / "backend",
+        env={**env, **unsafe},
+        capture_output=True,
+        text=True,
+        timeout=30,
+        check=False,
+    )
+    if result.returncode == 0 or "Payment collection is unconfigured" not in result.stderr:
+        raise RuntimeError("Production billing adapter boundary failed")
+print("production_billing_adapter_boundary_passed")
+for unsafe, expected in (
+    ({"INTEGRATION_TEST_TRANSPORT": "true"}, "Production integration test transports"),
+    ({"INTEGRATION_OUTBOUND_ENABLED": "true"}, "Outbound integrations require"),
+    ({"INTEGRATION_SIGNING_KEYS": "not-json"}, "Outbound integrations require"),
+    (
+        {"INTEGRATION_SIGNING_KEYS": '{"v1":"c3ludGhldGljLWludGVncmF0aW9uLXJvb3QtMzJieXRlcyE="}'},
+        "Outbound integrations require",
+    ),
+):
+    result = subprocess.run(
+        [sys.executable, "manage.py", "check"],
+        cwd=ROOT / "backend",
+        env={**env, **unsafe},
+        capture_output=True,
+        text=True,
+        timeout=30,
+        check=False,
+    )
+    if result.returncode == 0 or expected not in result.stderr:
+        raise RuntimeError("Production integration boundary failed")
+print("production_integration_boundary_passed")

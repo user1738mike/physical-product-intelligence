@@ -3,6 +3,7 @@ from django.db.models import Max, OuterRef, Subquery
 from rest_framework.exceptions import APIException, NotFound, ValidationError
 
 from audit.services import record
+from commercial import services as commercial
 from organizations.services import ADMIN, OWNER, authorize
 
 from .models import (
@@ -143,6 +144,7 @@ def _append_revision(actor, product, data):
 @transaction.atomic
 def create_product(actor, organization_id, data):
     organization, _ = authorize(actor, organization_id, lock=True)
+    commercial.capacity(organization)
     values = validated(ProductCreateInput, data)
     try:
         with transaction.atomic():
@@ -157,6 +159,7 @@ def create_product(actor, organization_id, data):
 @transaction.atomic
 def create_revision(actor, organization_id, product_id, data):
     organization, _ = authorize(actor, organization_id, lock=True)
+    commercial.require(organization, "catalog_write")
     product = product_in(organization, product_id, lock=True)
     require_active(product)
     return _append_revision(actor, product, validated(RevisionInput, data))
@@ -165,6 +168,7 @@ def create_revision(actor, organization_id, product_id, data):
 @transaction.atomic
 def create_evidence(actor, organization_id, product_id, data):
     organization, _ = authorize(actor, organization_id, lock=True)
+    commercial.require(organization, "catalog_write")
     product = product_in(organization, product_id, lock=True)
     require_active(product)
     evidence = Evidence.objects.create(
@@ -180,6 +184,8 @@ def set_product_active(actor, organization_id, product_id, data):
     product = product_in(organization, product_id, lock=True)
     values = validated(ProductStateInput, data)
     if product.is_active != values["is_active"]:
+        if values["is_active"]:
+            commercial.capacity(organization)
         product.is_active = values["is_active"]
         product.save(update_fields=["is_active", "updated_at"])
         event(

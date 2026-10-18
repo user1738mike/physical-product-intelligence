@@ -18,7 +18,9 @@ from .serializers import (
     CredentialsSerializer,
     CsrfSerializer,
     DetailSerializer,
+    PasswordChangeSerializer,
     ProfileSerializer,
+    RecoverySerializer,
     RegistrationSerializer,
 )
 
@@ -98,3 +100,39 @@ class MeView(PrivateResponseView):
     @extend_schema(responses=ProfileSerializer)
     def get(self, request):
         return Response(ProfileSerializer(request.user).data)
+
+
+class PasswordChangeView(PrivateResponseView):
+    throttle_classes = [SharedRateThrottle]
+    throttle_scope = "recovery"
+
+    @extend_schema(request=PasswordChangeSerializer, responses={204: None})
+    def post(self, request):
+        from .recovery import change
+
+        values = PasswordChangeSerializer(data=request.data)
+        values.is_valid(raise_exception=True)
+        change(
+            request.user.pk,
+            values.validated_data["current_password"],
+            values.validated_data["new_password"],
+        )
+        logout(request)
+        return Response(status=204)
+
+
+@method_decorator(csrf_protect, name="dispatch")
+class RecoveryView(PrivateResponseView):
+    permission_classes = [AllowAny]
+    throttle_classes = [SharedRateThrottle]
+    throttle_scope = "recovery"
+
+    @extend_schema(request=RecoverySerializer, responses={204: None})
+    def post(self, request):
+        from .recovery import redeem
+
+        values = RecoverySerializer(data=request.data)
+        values.is_valid(raise_exception=True)
+        redeem(values.validated_data["token"], values.validated_data["new_password"])
+        logout(request)
+        return Response(status=204)

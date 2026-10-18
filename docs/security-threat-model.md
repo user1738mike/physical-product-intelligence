@@ -1,5 +1,36 @@
 # Security threat model
 
+Completion identity/runtime controls: customer password change reauthenticates;
+operator-assisted recovery uses a fifteen-minute, one-way-verifier grant bound
+to the current password, single-use under a user row lock. New issuance revokes
+earlier links. Customer recovery excludes privileged accounts and inactive users.
+Issuance requires an active operator and protected owner DB connection; PostgreSQL
+denies HTTP-role issuance or historical rewrites. Links leave the command only
+through an exclusive 0600 file in an owner-only Linux directory. Identity proof
+and private delivery remain trusted support responsibilities, never inferred
+from unverified email or organization-admin status. The browser removes the URL
+fragment immediately; CSRF, shared throttling and generic errors protect POST
+redemption. Password updates invalidate sessions and revoke issued integration
+credentials. In-flight requests already admitted cannot be recalled.
+
+Organization settings expose existing server permissions through real customer
+forms; client role visibility is presentation only. Ownership transfer and
+suspension require explicit typed intent; server transactions preserve the sole
+owner and check membership/activity again. Suspended organization recovery exposes
+reactivation only to its existing owner. Audits remain protected and paginated.
+
+Supervised processors hold the protected operator connection, never the HTTP
+identity. They execute bounded existing delivery/recovery services with leases
+and live tenant/issuer/entitlement checks, never upload instructions, live AI
+processing or implicit payment initiation. Containers mount no evidence/backups,
+run without root/capabilities on a read-only filesystem and emit numeric counts.
+Worker health requires a successful recent cycle. Maintenance must quiesce every
+writer, including processors; the release helper now enforces this for new
+supervised rehearsal manifests. Runtime starts/stops, interrupted claims, stale
+extraction fences, revoked operators and quiesced backup selection have regression
+coverage. Host monitoring/egress, support identity proof and real deployment
+acceptance remain separate operational requirements.
+
 Assets: tenant product data, evidence, constraint IP, reproducible results, credentials, audit history and backup data. Actors: authorized users, malicious tenants, anonymous attackers, compromised workers and privileged operators. Trust boundaries: browser/ingress, ingress/application, application/database, application/storage, third-party identity/integration and operators/production.
 
 | Threat | Required mitigation and verification |

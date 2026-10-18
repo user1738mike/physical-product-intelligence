@@ -28,9 +28,11 @@ export function useTenant() {
 export function TenantFrame({
   org,
   children,
+  allowInactiveOrganization = false,
 }: {
   org: string;
   children: ReactNode;
+  allowInactiveOrganization?: boolean;
 }) {
   const [membership, setMembership] = useState<Membership | null>(null);
   const [error, setError] = useState("");
@@ -46,7 +48,10 @@ export function TenantFrame({
           (item) => item.organization.id === org,
         );
         if (found) {
-          const organization = await api.organization(org);
+          const organization =
+            allowInactiveOrganization && !found.organization.is_active
+              ? found.organization
+              : await api.organization(org);
           if (live) setMembership({ ...found, organization });
           return;
         }
@@ -66,7 +71,7 @@ export function TenantFrame({
     return () => {
       live = false;
     };
-  }, [org, attempt]);
+  }, [org, attempt, allowInactiveOrganization]);
   return (
     <main className="catalog-shell">
       <header className="masthead">
@@ -93,6 +98,26 @@ export function TenantFrame({
             Assessments
           </Link>
           <Link href="/account">Account</Link>
+          <Link href={`/organizations/${encodeURIComponent(org)}/settings`}>
+            Organization settings
+          </Link>
+          {membership && membership.role !== "member" && (
+            <Link
+              href={`/organizations/${encodeURIComponent(org)}/integrations`}
+            >
+              Integrations
+            </Link>
+          )}
+          {membership && membership.role !== "member" && (
+            <Link href={`/organizations/${encodeURIComponent(org)}/commercial`}>
+              Plan and usage
+            </Link>
+          )}
+          {membership && membership.role !== "member" && (
+            <Link href={`/organizations/${encodeURIComponent(org)}/billing`}>
+              Billing history
+            </Link>
+          )}
         </nav>
       </header>
       {error ? (

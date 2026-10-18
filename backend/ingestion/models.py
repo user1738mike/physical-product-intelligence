@@ -149,3 +149,57 @@ class ReviewRecord(Snapshot):
 
     class Meta:
         ordering = ["-at", "-id"]
+
+
+class RetentionPolicy(Snapshot):
+    organization = models.ForeignKey("organizations.Organization", on_delete=models.PROTECT)
+    actor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    version = models.PositiveIntegerField()
+    minimum_days = models.PositiveIntegerField(null=True)
+    legal_hold = models.BooleanField(default=True)
+    reason = models.CharField(max_length=1000)
+    at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-version"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["organization", "version"], name="retention_org_version"
+            ),
+            models.CheckConstraint(
+                condition=models.Q(minimum_days__isnull=True)
+                | models.Q(minimum_days__gte=1, minimum_days__lte=36500),
+                name="retention_days_bound",
+            ),
+        ]
+
+
+class SourceRemoval(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    source = models.ForeignKey(ImportJob, on_delete=models.PROTECT, related_name="removals")
+    policy = models.ForeignKey(RetentionPolicy, on_delete=models.PROTECT)
+    actor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    source_version = models.PositiveIntegerField()
+    sha256 = models.CharField(max_length=64)
+    storage_key = models.CharField(max_length=200)
+    reason = models.CharField(max_length=1000)
+    state = models.CharField(max_length=20, default="queued", db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    claimed_at = models.DateTimeField(null=True)
+    finished_at = models.DateTimeField(null=True)
+
+    class Meta:
+        ordering = ["created_at", "pk"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["source"],
+                condition=models.Q(state__in=["queued", "claimed", "needs_review", "removed"]),
+                name="source_one_removal",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(
+                    state__in=["queued", "claimed", "needs_review", "removed", "cancelled"]
+                ),
+                name="source_removal_state",
+            ),
+        ]

@@ -1,4 +1,5 @@
 import type { FormEvent } from "react";
+import Link from "next/link";
 
 type Props = {
   register: boolean;
@@ -65,6 +66,9 @@ export default function AuthForm({
       <button className="text-button" disabled={busy} onClick={onToggle}>
         {register ? "Already have an account? Sign in" : "Create an account"}
       </button>
+      <p>
+        <Link href="/account/recover">Recover account access</Link>
+      </p>
     </section>
   );
 }

@@ -44,6 +44,12 @@ def create_organization(actor, *, name, slug):
         raise PermissionDenied("Authentication required.")
     organization = Organization.objects.create(name=name, slug=slug)
     member = Membership.objects.create(organization=organization, user=actor, role=OWNER)
+    from commercial.services import enroll
+
+    enroll(organization, actor)
+    from billing.services import enroll as enroll_billing
+
+    enroll_billing(organization)
     record(
         "organization.created",
         actor=actor,

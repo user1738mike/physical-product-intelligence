@@ -6,6 +6,7 @@ from django.db.models.functions import Cast
 from rest_framework.exceptions import NotFound, ValidationError
 
 from audit.models import AuditEvent
+from commercial import services as commercial
 from organizations.services import ADMIN, OWNER, authorize
 
 from . import services
@@ -62,6 +63,7 @@ def claim_in(product, packaging, claim_id):
 
 def writable(actor, organization_id, product_id, *, packaging_id=None, roles=None):
     organization, _ = authorize(actor, organization_id, roles=roles, lock=True)
+    commercial.require(organization, "catalog_write")
     product = services.product_in(organization, product_id, lock=True)
     services.require_active(product)
     packaging = configuration_in(product, packaging_id, lock=True) if packaging_id else None
@@ -202,6 +204,8 @@ def configuration_state(actor, organization_id, product_id, packaging_id, data):
     if packaging.version != values["expected_version"]:
         raise StaleWrite()
     if packaging.is_active != values["is_active"]:
+        if values["is_active"]:
+            commercial.require(organization, "catalog_write")
         packaging.is_active = values["is_active"]
         packaging.version += 1
         packaging.modified_by = actor

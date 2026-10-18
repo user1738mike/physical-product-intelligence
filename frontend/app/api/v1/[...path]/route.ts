@@ -93,6 +93,14 @@ async function forward(request: Request, context: Context) {
       if (value !== null) headers.set(name, value);
     }
     const method = request.method.toUpperCase();
+    if (path[0] === "integration" && ["GET", "HEAD"].includes(method)) {
+      const authorization = request.headers.get("authorization");
+      if (
+        authorization &&
+        /^Bearer ppi_i_[0-9a-f]{32}\.[A-Za-z0-9_-]{43}$/.test(authorization)
+      )
+        headers.set("authorization", authorization);
+    }
     const body = ["GET", "HEAD"].includes(method)
       ? undefined
       : await readBody(
