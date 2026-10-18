@@ -108,6 +108,20 @@ def stop_owned_scan(name, nonce):
         execute(["docker", "stop", "--time", "5", name], timeout=20)
 
 
+def database_status(base, scanner):
+    nonce = secrets.token_hex(16)
+    name = "ppi-grype-status-" + nonce[:16]
+    try:
+        return execute(
+            base
+            + ["--name", name, "--label", "ppi.grype-scan=" + nonce]
+            + [scanner, "db", "status"],
+            timeout=300,
+        )
+    finally:
+        stop_owned_scan(name, nonce)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--directory", type=Path, required=True)
@@ -164,7 +178,7 @@ def main():
         "-v",
         args.database_cache + ":/cache",
     ]
-    code, stdout, stderr = execute(base + [scanner, "db", "status"])
+    code, stdout, stderr = database_status(base, scanner)
     (output / "database-status.log").write_text(stdout + stderr, encoding="utf-8")
     valid = code == 0 and fresh_database(stdout)
     imported = False

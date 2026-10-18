@@ -11,12 +11,26 @@ from unittest.mock import patch
 
 from attest_grype_import import stop_owned_import
 from grype_provenance import METADATA_URL, cache_digest, validate_metadata, verify_receipt
-from release_scan import archive_identity, stop_owned_scan, verdict
+from release_scan import archive_identity, database_status, stop_owned_scan, verdict
 
 NOW = datetime(2026, 10, 17, 12, tzinfo=UTC)
 
 
 class OfficialImportTests(unittest.TestCase):
+    def test_database_validation_timeout_cleans_only_its_owned_process(self):
+        with (
+            patch("release_scan.secrets.token_hex", return_value="a" * 32),
+            patch(
+                "release_scan.execute", side_effect=TimeoutError("Synthetic blocked storage")
+            ) as execute,
+            patch("release_scan.stop_owned_scan") as cleanup,
+        ):
+            with self.assertRaises(TimeoutError):
+                database_status(["docker", "run", "--rm"], "immutable-scanner")
+        cleanup.assert_called_once_with("ppi-grype-status-" + "a" * 16, "a" * 32)
+        self.assertEqual(execute.call_args.kwargs["timeout"], 300)
+        self.assertIn("ppi.grype-scan=" + "a" * 32, execute.call_args.args[0])
+
     def test_timeout_cleanup_stops_only_our_scanner_container(self):
         with patch("release_scan.execute", return_value=(0, "different-owner", "")) as execute:
             stop_owned_scan("fixture", "our-owner")
