@@ -87,7 +87,7 @@ synthetic credentials/env files are never published.
 | Frontend, from `frontend`: `npm run format:check`, `npm run lint`, `npm run typecheck`, `npm test`, `npm run build` | PASSED: 73 tests in 13 files; all style/type/build commands exited 0 |
 | Backend `ruff check` and `ruff format --check`, `backend scripts`, explicit backend config | PASSED; integrations import classification is now consistent across working directories |
 | `python -m unittest discover -s scripts -p 'test_*.py'` | PASSED: 29 tests |
-| Backend system, migration drift and strict OpenAPI checks | PASSED; recorded in `artifacts/dashboard-backend-checks.log` and schema retest log |
+| Backend system, migration drift and strict OpenAPI checks | PASSED offline and against the final PostgreSQL rehearsal using its runtime role; `artifacts/dashboard-backend-checks.log`, schema retest and `dashboard-runtime-checks.log` |
 | Full PostgreSQL backend suite | PASSED: 331 tests, 480.286s, exit 0; final dashboard 8/8 repeat passed in 1.866s; both unique test database pairs confirmed absent after teardown |
 | Real HTTPS browser journeys | PASSED: 2/2 Playwright tests, 28 checkpoints (10 dashboard +18 full business), 157.232s, zero skips/flaky/unexpected outcomes; `artifacts/dashboard-browser-r4` |
 
