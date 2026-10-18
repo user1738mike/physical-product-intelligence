@@ -5,6 +5,14 @@ function redactText(text, passwords = []) {
     text = text.replaceAll(password, "[redacted-synthetic-password]");
   return text
     .replace(
+      /\b((?:sessionid|csrftoken)\s*=\s*)[^;,\s\\'"<>]+/gi,
+      "$1[redacted-cookie]",
+    )
+    .replace(
+      /((?:cookie|set-cookie|authorization|x-csrftoken):[ \t]*)[^\\\r\n"']*/gi,
+      "$1[redacted-request-header]",
+    )
+    .replace(
       /ppi_i_[0-9a-f]{32}\.[A-Za-z0-9_-]{43}/g,
       "[redacted-api-credential]",
     )

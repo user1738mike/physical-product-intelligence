@@ -9,11 +9,11 @@ from django.db import connection
 from django.db.migrations.executor import MigrationExecutor
 from django.db.models import Count, Min
 from django.utils import timezone
-from integrations.models import Delivery
 
 from billing.models import Inbox, PaymentOperation
 from ingestion.ai_provider import availability
 from ingestion.models import ImportJob, SourceRemoval
+from integrations.models import Delivery
 from operations.database import runtime_role_privileged
 
 

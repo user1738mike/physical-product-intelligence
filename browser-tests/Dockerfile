@@ -7,5 +7,7 @@ COPY package.json package-lock.json ./
 RUN npm ci && mkdir -p /home/pwuser/.pki/nssdb \
     && chown -R pwuser:pwuser /tests /home/pwuser/.pki
 COPY --chown=pwuser:pwuser . .
+# Windows checkouts may use CRLF; the Linux shell requires LF at execution.
+RUN sed -i 's/\r$//' /tests/run.sh
 USER pwuser
 ENTRYPOINT ["sh", "/tests/run.sh"]

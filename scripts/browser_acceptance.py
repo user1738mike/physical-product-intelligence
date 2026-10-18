@@ -188,6 +188,8 @@ def main():
         "--shm-size=512m",
         "--memory=2g",
         "--cpus=2",
+        "-e",
+        "NODE_EXTRA_CA_CERTS=/rehearsal-ca.crt",
         "--security-opt",
         "seccomp=" + str(ROOT / "browser-tests/seccomp_profile.json"),
         "-v",

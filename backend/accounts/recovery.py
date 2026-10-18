@@ -8,11 +8,11 @@ from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import transaction
 from django.utils import timezone
-from integrations.models import Credential
 from rest_framework.exceptions import ValidationError
 
 from audit.services import record
 from commercial.services import operator
+from integrations.models import Credential
 
 from .models import RecoveryGrant
 

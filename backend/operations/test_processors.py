@@ -15,14 +15,14 @@ from django.core.management.base import CommandError
 from django.db import connection
 from django.test import TransactionTestCase, override_settings
 from django.utils import timezone
-from integrations import services
-from integrations.models import Delivery, DeliveryAttempt
-from integrations.tests import CONFIG, enable
 from rest_framework.exceptions import PermissionDenied
 
 from compatibility import services as assessments
 from compatibility.tests import Fixture
 from ingestion.models import ImportJob
+from integrations import services
+from integrations.models import Delivery, DeliveryAttempt
+from integrations.tests import CONFIG, enable
 from operations.models import RateBucket
 from operations.processors import cycle
 

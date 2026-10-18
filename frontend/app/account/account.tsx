@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import {
   api,
@@ -12,6 +13,7 @@ import {
 import { mergeMemberships } from "../../lib/memberships";
 import AuthForm from "./auth-form";
 import PasswordForm from "./password-form";
+import { organizationPath } from "../../lib/workspace";
 
 type AuthState =
   | { status: "loading" }
@@ -20,6 +22,7 @@ type AuthState =
   | { status: "authenticated"; user: User };
 
 export default function Account() {
+  const router = useRouter();
   const [auth, setAuth] = useState<AuthState>({ status: "loading" });
   const [register, setRegister] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -38,6 +41,7 @@ export default function Account() {
     );
     setMembershipPage(page);
     setHasMore(result.next !== null);
+    return result;
   }
 
   async function refresh() {
@@ -45,8 +49,9 @@ export default function Account() {
     setMessage("");
     try {
       const user = await api.me();
-      await loadMemberships();
+      const available = await loadMemberships();
       setAuth({ status: "authenticated", user });
+      return available;
     } catch (error) {
       if (error instanceof ApiError && error.status === 403) {
         setAuth({ status: "anonymous" });
@@ -67,7 +72,7 @@ export default function Account() {
     if (message) feedback.current?.focus();
   }, [message]);
 
-  async function act(operation: () => Promise<void>) {
+  async function act(operation: () => Promise<unknown>) {
     setBusy(true);
     setMessage("");
     try {
@@ -97,7 +102,10 @@ export default function Account() {
     void act(async () => {
       if (register) await api.register(username, password);
       await api.login(username, password);
-      await refresh();
+      const available = await refresh();
+      if (available?.count === 1 && available.results.length === 1) {
+        router.push(organizationPath(available.results[0].organization.id));
+      }
     });
   }
 
@@ -199,10 +207,7 @@ export default function Account() {
                     const id = event.target.value;
                     setSelectedId(id);
                     setOrganization(null);
-                    if (id)
-                      void act(async () => {
-                        setOrganization(await api.organization(id));
-                      });
+                    if (id) router.push(organizationPath(id));
                   }}
                 >
                   <option value="">Choose an organization</option>
@@ -232,9 +237,9 @@ export default function Account() {
                     </p>
                     <Link
                       className="button-link"
-                      href={`/organizations/${organization.id}/products`}
+                      href={organizationPath(organization.id)}
                     >
-                      Open product catalog
+                      Open dashboard
                     </Link>
                     <p>
                       <Link href={`/organizations/${organization.id}/settings`}>
@@ -281,9 +286,9 @@ export default function Account() {
             </form>
           </section>
           <p>
-            <Link href="/products">Open your product workspace</Link> to access
-            catalogs, evidence imports, equipment profiles and recorded-input
-            assessments. Physical safety is not certified.
+            <Link href="/products">Choose your organization workspace</Link> to
+            access catalogs, evidence imports, equipment profiles and
+            recorded-input assessments. Physical safety is not certified.
           </p>
           <PasswordForm
             onComplete={() => {

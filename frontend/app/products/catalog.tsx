@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { api, type Membership, type Page } from "../../lib/api";
+import { organizationPath } from "../../lib/workspace";
 import {
   catalogPath,
   products,
@@ -51,10 +52,10 @@ export function OrganizationPicker() {
       </header>
       <div className="page-heading">
         <div>
-          <p className="eyebrow">PRODUCT WORKSPACE</p>
+          <p className="eyebrow">YOUR WORKSPACE</p>
           <h1>Your organizations</h1>
           <p>
-            Choose a catalog to manage products, packaging and their evidence.
+            Choose an organization to open its overview, products and evidence.
           </p>
         </div>
       </div>
@@ -85,13 +86,22 @@ export function OrganizationPicker() {
                   {item.organization.is_active ? (
                     <Link
                       className="button-link"
-                      href={catalogPath(item.organization.id)}
+                      href={organizationPath(item.organization.id)}
                     >
-                      Open product catalog
+                      Open dashboard
                     </Link>
                   ) : (
                     <p className="notice">
-                      Organization suspended. Protected access is unavailable.
+                      Organization suspended.{" "}
+                      <Link
+                        href={organizationPath(
+                          item.organization.id,
+                          "settings",
+                        )}
+                      >
+                        Open organization settings
+                      </Link>{" "}
+                      for permitted recovery and management.
                     </p>
                   )}
                 </section>

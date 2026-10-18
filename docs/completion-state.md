@@ -87,3 +87,47 @@ domain/region/budget/deploy authorization; hosted billing restriction must be
 rechecked after push; residual image vulnerabilities require supported fixes or
 trusted database corrections. Live AI quality/connectivity remains unexecuted
 without its specific authorization. Report six readiness gates separately.
+
+## Dashboard continuation — 2026-10-18
+
+Active branch `codex/unified-dashboard`, starting from `31f5a19`.
+See [dashboard walkthrough](dashboard-walkthrough.md) and requirement rows
+DASH-01–06 in the completion plan. The current code adds a persistent shared
+organization layout, canonical overview, scoped aggregates and independent
+optional summaries while preserving existing business services and permissions.
+
+Verified: frontend 73 tests/format/lint/types/production build; PostgreSQL 331
+tests plus final 8-test dashboard repeat; system/migration/schema checks; 29 script
+tests; backend style. Test databases were unique and confirmed removed afterward.
+Receipts: `artifacts/dashboard-backend-verification.json`, related logs and
+`artifacts/dashboard-test-db-teardown.json`.
+
+Fresh rehearsal `ppi-rehearsal-5f1408662b` at `https://127.0.0.1:24443`, state
+`artifacts/dashboard-rehearsal-r1`, uses new isolated DB/private storage and the
+candidate backend/frontend images. All seven services healthy. Real HTTPS
+session and full catalog/import/review/assessment smoke passed. Previous app,
+rehearsals, databases, volumes, root `.env` and evidence are unchanged.
+
+Final sandboxed Chromium verification PASSED in `artifacts/dashboard-browser-r4`:
+2/2 tests, 28 checkpoints, 157.232s, zero skipped/flaky/unexpected outcomes. Dashboard
+console/runtime/hydration and unexpected 5xx counts are zero; 3 injected 503s and 11
+expected authorization denials are separately labelled. All three roles, two
+organizations, navigation/deep links, stale responses, optional errors/retry,
+credential clearing, desktop/tablet/phone focus/contrast and account/logout paths
+passed. Desktop/mobile PNGs were inspected. The full existing business journey
+also passed after the final primary-link text contrast correction.
+
+Final selected frontend is `1d37cff3ff78`; backend `5d8336bed8b3`. The browser execution
+receipt contains full identities. 187 backend source/configuration files match its
+immutable core image. Earlier failed r1–r3 receipts remain distinguishable: launcher
+line endings, test-client CA trust, test navigation/alert synchronization and the
+observed primary-link contrast defect were corrected. Cookie/header redaction has
+JSON-preservation regressions and sanitized earlier diagnostic files.
+
+No live provider/payment, image publication or remote deployment occurs. Resume
+only affected verification with a NEW browser output directory after inspecting
+retained evidence, using the command in the walkthrough. Final commit/push/hosted
+outcomes and source/build/evidence bindings are written outside Git to
+`artifacts/dashboard-publication.json` after the report commit. Existing global
+implementation/security/provider/CI/deployment/commercial gates remain unchanged;
+local dashboard success does not assert full v1 or production readiness.

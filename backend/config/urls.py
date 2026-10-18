@@ -1,7 +1,6 @@
 from django.contrib import admin
 from django.urls import include, path
 from drf_spectacular.views import SpectacularAPIView
-from integrations.views import management_urls
 
 from accounts.views import (
     CsrfView,
@@ -13,7 +12,9 @@ from accounts.views import (
     RegisterView,
 )
 from billing.views import SyntheticInbox
+from integrations.views import management_urls
 from operations.views import LiveView, ReadyView
+from organizations.dashboard import DashboardView
 from organizations.views import (
     AuditView,
     MemberDetailView,
@@ -43,6 +44,11 @@ urlpatterns = [
     path("api/v1/auth/password/", PasswordChangeView.as_view(), name="auth-password"),
     path("api/v1/auth/recover/", RecoveryView.as_view(), name="auth-recover"),
     path("api/v1/auth/memberships/", MyMembershipsView.as_view(), name="my-memberships"),
+    path(
+        "api/v1/organizations/<uuid:organization_id>/dashboard/",
+        DashboardView.as_view(),
+        name="organization-dashboard",
+    ),
     path("api/v1/organizations/", OrganizationsView.as_view(), name="organizations"),
     path(
         "api/v1/organizations/<uuid:organization_id>/",

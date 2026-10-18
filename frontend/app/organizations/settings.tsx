@@ -139,94 +139,97 @@ function Settings({ refresh }: { refresh: () => void }) {
         <p role="status">Loading members…</p>
       ) : (
         <>
-          <table>
-            <caption>Current organization access</caption>
-            <thead>
-              <tr>
-                <th scope="col">Username</th>
-                <th scope="col">Role</th>
-                <th scope="col">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {members.results.map((member) => (
-                <tr key={member.id}>
-                  <td>{member.user.username}</td>
-                  <td>{member.role}</td>
-                  <td>
-                    {owner && member.role !== "owner" && (
-                      <MutationForm
-                        label={`Save role for ${member.user.username}`}
-                        action={async (data) => {
-                          await api.changeRole(
-                            org,
-                            member.id,
-                            data.get("role") === "admin" ? "admin" : "member",
-                          );
-                          refresh();
-                        }}
-                      >
-                        <label htmlFor={`member-role-${member.id}`}>
-                          Role for {member.user.username}
-                        </label>
-                        <select
-                          id={`member-role-${member.id}`}
-                          name="role"
-                          defaultValue={member.role}
-                        >
-                          <option value="member">Member</option>
-                          <option value="admin">Administrator</option>
-                        </select>
-                      </MutationForm>
-                    )}
-                    {manager &&
-                      member.role !== "owner" &&
-                      (owner || member.role === "member") && (
+          <div className="table-scroll">
+            <table>
+              <caption>Current organization access</caption>
+              <thead>
+                <tr>
+                  <th scope="col">Username</th>
+                  <th scope="col">Role</th>
+                  <th scope="col">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {members.results.map((member) => (
+                  <tr key={member.id}>
+                    <td>{member.user.username}</td>
+                    <td>{member.role}</td>
+                    <td>
+                      {owner && member.role !== "owner" && (
                         <MutationForm
-                          label={`Remove ${member.user.username}`}
-                          action={async () => {
-                            await api.removeMember(org, member.id);
+                          label={`Save role for ${member.user.username}`}
+                          action={async (data) => {
+                            await api.changeRole(
+                              org,
+                              member.id,
+                              data.get("role") === "admin" ? "admin" : "member",
+                            );
+                            refresh();
+                          }}
+                        >
+                          <label htmlFor={`member-role-${member.id}`}>
+                            Role for {member.user.username}
+                          </label>
+                          <select
+                            id={`member-role-${member.id}`}
+                            name="role"
+                            defaultValue={member.role}
+                          >
+                            <option value="member">Member</option>
+                            <option value="admin">Administrator</option>
+                          </select>
+                        </MutationForm>
+                      )}
+                      {manager &&
+                        member.role !== "owner" &&
+                        (owner || member.role === "member") && (
+                          <MutationForm
+                            label={`Remove ${member.user.username}`}
+                            action={async () => {
+                              await api.removeMember(org, member.id);
+                              refresh();
+                            }}
+                          >
+                            <p>
+                              Revoke organization access for{" "}
+                              {member.user.username}.
+                            </p>
+                          </MutationForm>
+                        )}
+                      {owner && member.role !== "owner" && (
+                        <MutationForm
+                          label={`Transfer ownership to ${member.user.username}`}
+                          action={async (data) => {
+                            if (
+                              String(data.get("confirm")) !==
+                              member.user.username
+                            )
+                              throw new ApiError(
+                                400,
+                                "Enter the new owner’s username exactly.",
+                              );
+                            await api.transferOwnership(org, member.id);
                             refresh();
                           }}
                         >
                           <p>
-                            Revoke organization access for{" "}
-                            {member.user.username}.
+                            This member becomes the sole owner. You become an
+                            administrator. Enter their username to confirm.
                           </p>
+                          <Field
+                            label={`Confirm new owner ${member.user.username}`}
+                            name="confirm"
+                            required
+                            maxLength={150}
+                          />
                         </MutationForm>
                       )}
-                    {owner && member.role !== "owner" && (
-                      <MutationForm
-                        label={`Transfer ownership to ${member.user.username}`}
-                        action={async (data) => {
-                          if (
-                            String(data.get("confirm")) !== member.user.username
-                          )
-                            throw new ApiError(
-                              400,
-                              "Enter the new owner’s username exactly.",
-                            );
-                          await api.transferOwnership(org, member.id);
-                          refresh();
-                        }}
-                      >
-                        <p>
-                          This member becomes the sole owner. You become an
-                          administrator. Enter their username to confirm.
-                        </p>
-                        <Field
-                          label={`Confirm new owner ${member.user.username}`}
-                          name="confirm"
-                          required
-                          maxLength={150}
-                        />
-                      </MutationForm>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
           <Pagination
             page={page}
             count={members.count}
@@ -245,25 +248,27 @@ function Settings({ refresh }: { refresh: () => void }) {
             <p role="status">Loading audit history…</p>
           ) : (
             <>
-              <table>
-                <caption>Recorded organization changes</caption>
-                <thead>
-                  <tr>
-                    <th scope="col">Time</th>
-                    <th scope="col">Action</th>
-                    <th scope="col">Outcome</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {events.results.map((event) => (
-                    <tr key={event.id}>
-                      <td>{new Date(event.timestamp).toISOString()}</td>
-                      <td>{event.action}</td>
-                      <td>{event.outcome}</td>
+              <div className="table-scroll">
+                <table>
+                  <caption>Recorded organization changes</caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">Time</th>
+                      <th scope="col">Action</th>
+                      <th scope="col">Outcome</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {events.results.map((event) => (
+                      <tr key={event.id}>
+                        <td>{new Date(event.timestamp).toISOString()}</td>
+                        <td>{event.action}</td>
+                        <td>{event.outcome}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
               <Pagination
                 page={auditPage}
                 count={events.count}
@@ -311,7 +316,12 @@ export default function OrganizationSettings({ org }: { org: string }) {
       org={org}
       allowInactiveOrganization
     >
-      <Settings refresh={() => setGeneration((value) => value + 1)} />
+      <Settings
+        refresh={() => {
+          setGeneration((value) => value + 1);
+          window.dispatchEvent(new Event("ppi:access-refresh"));
+        }}
+      />
     </TenantFrame>
   );
 }

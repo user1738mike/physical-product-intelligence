@@ -219,5 +219,8 @@ jobs:
             artifacts/browser-results/billing-processing.json
             artifacts/browser-results/integrations-management.png
             artifacts/browser-results/source-retention.png
+            artifacts/browser-results/dashboard-acceptance.json
+            artifacts/browser-results/dashboard-desktop.png
+            artifacts/browser-results/dashboard-mobile.png
             artifacts/integration-demo-ci/receipt.json
           if-no-files-found: warn

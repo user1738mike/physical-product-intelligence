@@ -4,12 +4,12 @@ from datetime import timedelta
 
 from django.db.models import Q
 from django.utils import timezone
-from integrations import services as integrations
-from integrations.models import Delivery
 
 from commercial import services as commercial
 from ingestion.models import ImportJob
 from ingestion.retention import cycle as retention_cycle
+from integrations import services as integrations
+from integrations.models import Delivery
 from operations.models import RateBucket
 
 

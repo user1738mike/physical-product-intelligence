@@ -95,3 +95,20 @@ findings prevent overall local acceptance. A simulator is never a real adapter.
 
 No speculative roles, robot control, physical safety certification, infrastructure
 purchase, image publication or live payment/AI execution is implied.
+
+## Unified dashboard increment — 2026-10-18
+
+Source: user dashboard brief in attachment
+`65dac917-0b0c-431f-bbc3-a945ba14a196/Pasted text.txt`. This is a focused
+increment from the completed `31f5a19` candidate. Existing IDs and historical
+results above are preserved; dashboard evidence does not close their external
+security, provider, hosted CI or deployment gates.
+
+| ID | Acceptance condition | Components / evidence | Result |
+| --- | --- | --- | --- |
+| DASH-01 | One persistent organization layout; canonical Overview; all nine authorized sections and nested/deep URLs | Organization layout, shared shell, unchanged section pages; dashboard walkthrough | PASSED; final real browser navigation and nested routes |
+| DASH-02 | Real bounded tenant aggregates, accurate totals beyond pagination, recent detail links and truthful scopes | Dashboard API; eight PostgreSQL regressions including count >25, current rules, query bound and foreign/revoked denials | PASSED; final targeted 8/8 and full backend 331/331 |
+| DASH-03 | Role-aware navigation, fresh organization/user/role boundaries and preserved inactive/expired paths | Shell/context/TenantFrame; frontend boundary tests; browser role/switch/reveal checks | PASSED; final frontend/backend/browser permissions and reveal clearing |
+| DASH-04 | Core and optional regions have independent loading/error/retry behavior; no stale response publication | Scoped resource loader; 10 overview tests; browser delayed-response and injected-failure scenarios | PASSED; actual stale-response switch and explicitly injected transient faults |
+| DASH-05 | Desktop/tablet/phone navigation, mobile focus/dismissal and usable tables; account/logout/recovery accessible | Shared CSS, dialog shell, existing account/recovery forms; browser screenshots/checkpoints | PASSED; final contrast regression, keyboard, screenshots and business/account journeys |
+| DASH-06 | Relevant format/lint/types/build, PostgreSQL/schema/migration checks and real browser evidence; review-branch publication | Dashboard walkthrough and ignored verification receipts | Local checks PASSED: 331 + 8 backend, 73 frontend, 29 scripts, 2 browser journeys / 28 checkpoints; publication/hosted outcomes recorded after commit in dashboard-publication.json |

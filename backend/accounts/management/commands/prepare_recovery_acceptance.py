@@ -5,9 +5,9 @@ import uuid
 from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand
 from django.db import transaction
-from integrations.rehearsal import require
 
 from accounts.recovery import issue
+from integrations.rehearsal import require
 from organizations.services import create_organization
 
 

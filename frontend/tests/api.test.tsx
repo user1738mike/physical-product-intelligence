@@ -3,6 +3,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import Account from "../app/account/account";
 import { api, ApiError, request } from "../lib/api";
 
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
+
 afterEach(() => vi.unstubAllGlobals());
 
 describe("session API boundary", () => {

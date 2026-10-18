@@ -15,13 +15,13 @@ from django.core.management.base import CommandError
 from django.db import IntegrityError, close_old_connections, connection, transaction
 from django.test import TestCase, TransactionTestCase
 from django.utils import timezone
-from integrations.models import Credential
 from rest_framework.exceptions import ValidationError
 from rest_framework.test import APIClient
 
 from accounts import recovery
 from accounts.models import RecoveryGrant
 from audit.models import AuditEvent
+from integrations.models import Credential
 from operations.models import RateBucket
 
 OLD = "fixture-old!Password2026"

@@ -7,10 +7,10 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management.base import BaseCommand
 from django.db import transaction
 from django.utils import timezone
-from integrations.rehearsal import require
 
 from ingestion import services
 from ingestion.models import ImportJob
+from integrations.rehearsal import require
 from organizations.services import create_organization
 
 

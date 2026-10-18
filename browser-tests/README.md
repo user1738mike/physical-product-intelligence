@@ -15,7 +15,27 @@ The browser runs as non-root `pwuser` with `chromiumSandbox: true`. `seccomp_pro
 
 Only this environment's public CA is added to an NSS database in the isolated container home. Browser certificate validation remains enabled (`ignoreHTTPSErrors: false`); the host/OS trust store is untouched. Base URL is `https://edge:8443` on the rehearsal's Docker network, whose certificate contains the `edge` SAN. This validates private local TLS, not a public deployment certificate. The ordinary in-app browser currently rejects this private CA; do not bypass its warning.
 
+The driver passes `NODE_EXTRA_CA_CERTS=/rehearsal-ca.crt` so Playwright's Node-side
+API requests validate that same isolated public CA. The image normalizes the
+copied shell runner to LF for Windows checkouts. Result redaction covers fixture
+passwords, credentials, recovery tokens, session cookies and CSRF/authorization
+headers; its regression check preserves valid JSON even when a header ends an
+error message.
+
 The test guards `synthetic_rehearsal_only` before clicking extraction. It covers secure cookies, organization selection/switching, product/packaging creation, unsupported upload error, clean real-scanned CSV and exact-byte private download, recorded proposal/visible source quote/review/canonical selection, reported dimensions, four explicit dimensional/mass rules, compatible/conflicting/incompatible/missing outcomes, immutable prior snapshot, role/foreign/private-file/revocation denials and logout. A clean process exit plus `acceptance.json` is required for a pass; a prepared test or launched browser alone is not acceptance. Retries are disabled. New synthetic data remains available for review.
+
+The dashboard journey adds two new synthetic organizations and verifies the
+canonical overview landing, all nine owner/admin sidebar sections, member-only
+navigation, nested product create/edit/refresh/back/forward, active/archive totals
+against the scoped catalog, in-flight organization switching, foreign and revoked
+access, account/logout/recovery, and tablet/phone drawer keyboard behavior.
+The existing integration journey also verifies that a reveal-once credential
+clears after organization switching and a revalidated administrator downgrade.
+Browser-intercepted transient core/optional-summary errors exercise loading,
+unavailable and retry behavior without claiming a real dependency outage. It
+writes `dashboard-acceptance.json`, `dashboard-desktop.png` and
+`dashboard-mobile.png`; screenshots contain synthetic customer records and no
+credential-reveal UI. See [dashboard browser plan](../docs/dashboard-browser-plan.md).
 
 For CI, the `browser-acceptance` job builds the actual applications, provisions a fresh isolated HTTPS/real-scanner rehearsal, creates synthetic login context with existing smoke workflows, and executes this runner. Only selected sanitized result files are uploaded, never the rehearsal directory/env/credentials. No live-provider key or production secret is needed. Actual hosted results are a separate gate.
 

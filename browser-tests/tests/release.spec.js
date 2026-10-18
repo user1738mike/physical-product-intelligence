@@ -37,6 +37,8 @@ async function authorized(page, path, method = "GET", data) {
   );
 }
 async function selectOrganization(page, organizationId) {
+  await expect(page.getByLabel("Active organization")).toBeVisible();
+  await expect(page.getByLabel("Active organization")).toBeEnabled();
   for (let pageNumber = 0; pageNumber < 25; pageNumber++) {
     const found = await page
       .getByLabel("Active organization")
@@ -51,7 +53,19 @@ async function selectOrganization(page, organizationId) {
       exact: true,
     });
     await expect(more).toBeVisible();
+    const loaded = page.waitForResponse(
+      (response) =>
+        response.request().method() === "GET" &&
+        new URL(response.url()).pathname === "/api/v1/auth/memberships/",
+    );
     await more.click();
+    const result = await (await loaded).json();
+    if (result.results.length)
+      await expect(
+        page
+          .getByLabel("Active organization")
+          .locator(`option[value="${result.results[0].organization.id}"]`),
+      ).toHaveCount(1);
     await expect(page.getByLabel("Active organization")).toBeEnabled();
   }
   await page.getByLabel("Active organization").selectOption(organizationId);
@@ -98,7 +112,8 @@ test("real HTTPS browser release journey with reviewed recorded extraction", asy
     second = await createOrg(page, "b");
   await selectOrganization(page, org);
   await page
-    .getByRole("link", { name: "Open product catalog", exact: true })
+    .getByRole("navigation", { name: "Organization navigation", exact: true })
+    .getByRole("link", { name: "Products", exact: true })
     .click();
   await expect(
     page.getByRole("heading", { name: "Products with a traceable history." }),
@@ -457,6 +472,29 @@ test("real HTTPS browser release journey with reviewed recorded extraction", asy
     }),
   ).toBeVisible();
   mark("missing_evidence_indeterminate");
+  await page.goto(root + "/dashboard");
+  await expect(
+    page.getByText("4 assessments, all time", { exact: true }),
+  ).toBeVisible();
+  await page
+    .getByRole("region", { name: "Recent assessments", exact: true })
+    .locator(`a[href="${new URL(compatible).pathname}"]`)
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "Assessment: compatible", exact: true }),
+  ).toBeVisible();
+  await page.goto(root + "/dashboard");
+  await page
+    .getByRole("region", { name: "Recent imports", exact: true })
+    .locator(`a[href="${root}/imports/${job}"]`)
+    .click();
+  await expect(
+    page.getByRole("heading", {
+      name: "Import status: completed",
+      exact: true,
+    }),
+  ).toBeVisible();
+  mark("overview_real_assessment_totals_and_recent_record_links");
   await page.getByRole("link", { name: "Plan and usage", exact: true }).click();
   await expect(
     page.getByRole("heading", { name: "Plan and usage", exact: true }),
@@ -603,12 +641,18 @@ test("real HTTPS browser release journey with reviewed recorded extraction", asy
       page.getByLabel("One-time secret", { exact: true }),
     ).toBeVisible();
     // Never print, snapshot, screenshot or persist the transient secret.
-    await page
-      .getByRole("button", { name: "I have saved the secret", exact: true })
-      .click();
+    await selectOrganization(page, org);
     await expect(
       page.getByLabel("One-time secret", { exact: true }),
     ).toHaveCount(0);
+    await page.goto(integrationRoot);
+    await expect(
+      page.getByRole("heading", { name: "Integrations", exact: true }),
+    ).toBeVisible();
+    await expect(
+      page.getByLabel("One-time secret", { exact: true }),
+    ).toHaveCount(0);
+    mark("integration_reveal_once_secret_clears_on_organization_switch");
     await page
       .getByRole("button", { name: "Rotate Warehouse reader", exact: true })
       .click();
@@ -742,9 +786,56 @@ test("real HTTPS browser release journey with reviewed recorded extraction", asy
     await expect(
       outsider.getByLabel("One-time secret", { exact: true }),
     ).toBeVisible();
-    await outsider
-      .getByRole("button", { name: "I have saved the secret", exact: true })
-      .click();
+    const integrationApi = `/api/v1/organizations/${fixture.integrations.organization_id}/`;
+    const integrationMembers = await authorized(
+      page,
+      integrationApi + "members/",
+    );
+    expect(integrationMembers.status).toBe(200);
+    const integrationAdmin = integrationMembers.data.results.find(
+      (member) => member.user.username === fixture.outsider.username,
+    );
+    expect(integrationAdmin?.role).toBe("admin");
+    expect(
+      (
+        await authorized(
+          page,
+          integrationApi + `members/${integrationAdmin.id}/`,
+          "PATCH",
+          { role: "member" },
+        )
+      ).status,
+    ).toBe(200);
+    // Simulate returning to this tab: the shared shell revalidates authorization.
+    await outsider.evaluate(() => window.dispatchEvent(new Event("focus")));
+    await expect(
+      outsider.getByLabel("One-time secret", { exact: true }),
+    ).toHaveCount(0);
+    await expect(
+      outsider.getByText(
+        "Only organization owners and administrators can manage integrations.",
+        { exact: true },
+      ),
+    ).toBeVisible();
+    expect(
+      (await authorized(outsider, integrationApi + "integrations/")).status,
+    ).toBe(403);
+    expect(
+      (
+        await authorized(
+          page,
+          integrationApi + `members/${integrationAdmin.id}/`,
+          "PATCH",
+          { role: "admin" },
+        )
+      ).status,
+    ).toBe(200);
+    await outsider.evaluate(() => window.dispatchEvent(new Event("focus")));
+    await expect(adminCredentialForm).toBeVisible();
+    await expect(
+      outsider.getByLabel("One-time secret", { exact: true }),
+    ).toHaveCount(0);
+    mark("integration_secret_clears_on_revalidated_role_downgrade");
     await outsider
       .getByRole("button", {
         name: "Revoke Admin warehouse reader",
@@ -864,7 +955,8 @@ test("real HTTPS browser release journey with reviewed recorded extraction", asy
   await page.goto("/account");
   await selectOrganization(page, second);
   await page
-    .getByRole("link", { name: "Open product catalog", exact: true })
+    .getByRole("navigation", { name: "Organization navigation", exact: true })
+    .getByRole("link", { name: "Products", exact: true })
     .click();
   await expect(
     page.getByRole("heading", {
@@ -906,6 +998,7 @@ test("real HTTPS browser release journey with reviewed recorded extraction", asy
       username: recovery.username,
       password: recovery.new_password,
     });
+    await page.goto("/account");
     await page
       .getByLabel("Current password", { exact: true })
       .fill(recovery.new_password);
@@ -936,7 +1029,7 @@ test("real HTTPS browser release journey with reviewed recorded extraction", asy
     await page
       .getByRole("button", { name: "Rename organization", exact: true })
       .click();
-    await expect(page.locator(".workspace-context")).toContainText(
+    await expect(page.locator(".dashboard-context")).toContainText(
       "Recovered organization " + suffix,
     );
     await page
@@ -956,9 +1049,7 @@ test("real HTTPS browser release journey with reviewed recorded extraction", asy
         exact: true,
       })
       .click();
-    await expect(page.locator(".workspace-context")).toContainText(
-      "Your role: admin",
-    );
+    await expect(page.locator(".dashboard-context .badge")).toHaveText("admin");
     await expect(
       page.getByRole("button", { name: "Suspend organization", exact: true }),
     ).toHaveCount(0);
@@ -1001,14 +1092,12 @@ test("real HTTPS browser release journey with reviewed recorded extraction", asy
         exact: true,
       })
       .click();
-    await expect(newOwner.locator(".workspace-context")).toContainText(
-      "Your role: admin",
+    await expect(newOwner.locator(".dashboard-context .badge")).toHaveText(
+      "admin",
     );
     await ownerContext.close();
     await page.goto(settingsPath);
-    await expect(page.locator(".workspace-context")).toContainText(
-      "Your role: owner",
-    );
+    await expect(page.locator(".dashboard-context .badge")).toHaveText("owner");
     await page
       .getByRole("button", {
         name: "Remove " + fixture.outsider.username,

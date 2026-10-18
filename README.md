@@ -98,6 +98,16 @@ See [architecture](docs/system-architecture.md), [domain model](docs/domain-mode
 
 ## Accounts and organizations
 
+The signed-in workspace now has a shared organization dashboard at
+`/organizations/{organizationId}/dashboard`. Organization selection opens
+Overview; a single-membership sign-in lands there directly. The sidebar connects
+products, imports/review, equipment/rules, assessments, plan/usage, billing,
+integrations and settings while preserving nested direct URLs. Account and
+recovery remain separate and reachable from the header. Members see their
+permitted sections; management actions retain existing server authorization.
+See the [dashboard walkthrough](docs/dashboard-walkthrough.md) for navigation,
+real-data summaries, API mapping and actual verification results.
+
 After applying migrations, open http://localhost:3000/account to register, sign in, create an organization and select your organization context. Registration uses a case-sensitive username (ASCII letters, digits, dot, underscore and hyphen) and a validated password of at least 12 characters. It never creates staff or superusers. Django's existing `auth.User` is retained to preserve migration history; email identity, email verification, recovery, invitations, MFA and SSO are deferred. An authorized owner/admin may add an already registered user by username through the membership API; no email delivery is claimed.
 
 Existing Django usernames, including Unicode and `@`/`+`, remain valid at login; the registration character policy applies only to new accounts. A newly created organization is added to the selector using its server-returned membership even when it falls beyond the first page. Later pages update roles without duplicating organizations.

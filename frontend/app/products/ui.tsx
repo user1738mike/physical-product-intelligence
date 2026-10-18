@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import {
-  createContext,
   useContext,
   useEffect,
   useId,
@@ -11,19 +10,16 @@ import {
   type ReactNode,
   type InputHTMLAttributes,
 } from "react";
-import { api, ApiError, type Membership } from "../../lib/api";
-import { catalogPath } from "../../lib/products";
+import { ApiError } from "../../lib/api";
+import { TenantContext, WorkspaceContext } from "../dashboard/context";
+import WorkspaceShell from "../dashboard/shell";
+import { organizationPath } from "../../lib/workspace";
 
 export const messageFor = (error: unknown) =>
   error instanceof ApiError
     ? error.message
     : "Connection failed. Please try again.";
-const Tenant = createContext<Membership | null>(null);
-export function useTenant() {
-  const value = useContext(Tenant);
-  if (!value) throw new Error("Organization context is missing");
-  return value;
-}
+export { useTenant } from "../dashboard/context";
 
 export function TenantFrame({
   org,
@@ -34,114 +30,36 @@ export function TenantFrame({
   children: ReactNode;
   allowInactiveOrganization?: boolean;
 }) {
-  const [membership, setMembership] = useState<Membership | null>(null);
-  const [error, setError] = useState("");
-  const [attempt, setAttempt] = useState(0);
-  useEffect(() => {
-    let live = true;
-    async function load() {
-      await api.me();
-      let page = 1;
-      while (true) {
-        const result = await api.memberships(page);
-        const found = result.results.find(
-          (item) => item.organization.id === org,
-        );
-        if (found) {
-          const organization =
-            allowInactiveOrganization && !found.organization.is_active
-              ? found.organization
-              : await api.organization(org);
-          if (live) setMembership({ ...found, organization });
-          return;
-        }
-        if (!result.next)
-          throw new ApiError(
-            404,
-            "Organization access is unavailable. Check your membership or sign in.",
-          );
-        page++;
-      }
-    }
-    setMembership(null);
-    setError("");
-    void load().catch((failure) => {
-      if (live) setError(messageFor(failure));
-    });
-    return () => {
-      live = false;
-    };
-  }, [org, attempt, allowInactiveOrganization]);
-  return (
-    <main className="catalog-shell">
-      <header className="masthead">
-        <Link href="/" className="brand">
-          <span className="mark" aria-hidden="true">
-            P
-          </span>
-          <span>
-            PHYSICAL PRODUCT
-            <br />
-            INTELLIGENCE CLOUD
-          </span>
-        </Link>
-        <nav aria-label="Workspace">
-          <Link href="/products">Organizations</Link>
-          <Link href={catalogPath(org)}>Catalog</Link>
-          <Link href={`/organizations/${encodeURIComponent(org)}/imports`}>
-            Imports
-          </Link>
-          <Link href={`/organizations/${encodeURIComponent(org)}/equipment`}>
-            Equipment
-          </Link>
-          <Link href={`/organizations/${encodeURIComponent(org)}/assessments`}>
-            Assessments
-          </Link>
-          <Link href="/account">Account</Link>
-          <Link href={`/organizations/${encodeURIComponent(org)}/settings`}>
-            Organization settings
-          </Link>
-          {membership && membership.role !== "member" && (
-            <Link
-              href={`/organizations/${encodeURIComponent(org)}/integrations`}
-            >
-              Integrations
-            </Link>
-          )}
-          {membership && membership.role !== "member" && (
-            <Link href={`/organizations/${encodeURIComponent(org)}/commercial`}>
-              Plan and usage
-            </Link>
-          )}
-          {membership && membership.role !== "member" && (
-            <Link href={`/organizations/${encodeURIComponent(org)}/billing`}>
-              Billing history
-            </Link>
-          )}
-        </nav>
-      </header>
-      {error ? (
-        <section className="notice error" role="alert">
-          <h1>Access unavailable</h1>
-          <p>{error}</p>
-          <Link href="/account">Sign in / manage memberships</Link>
-          <button onClick={() => setAttempt(attempt + 1)}>Retry access</button>
-        </section>
-      ) : !membership ? (
-        <p role="status" className="loading">
-          Loading your organization…
-        </p>
-      ) : (
-        <Tenant.Provider value={membership}>
-          <div className="workspace-context">
-            <span>{membership.organization.name}</span>
-            <span>Your role: {membership.role}</span>
-          </div>
+  const workspace = useContext(WorkspaceContext);
+  const membership = useContext(TenantContext);
+  if (!workspace || workspace.org !== org) {
+    return (
+      <WorkspaceShell org={org}>
+        <TenantFrame
+          org={org}
+          allowInactiveOrganization={allowInactiveOrganization}
+        >
           {children}
-        </Tenant.Provider>
-      )}
-    </main>
-  );
+        </TenantFrame>
+      </WorkspaceShell>
+    );
+  }
+  if (!membership) return <p role="status">Loading your organization…</p>;
+  if (!membership.organization.is_active && !allowInactiveOrganization) {
+    return (
+      <section className="notice">
+        <h1>Organization suspended</h1>
+        <p>
+          Business records are unavailable while this organization is suspended.
+          Existing account and authorized management paths remain available.
+        </p>
+        <Link href={organizationPath(org, "settings")}>
+          Organization settings
+        </Link>
+      </section>
+    );
+  }
+  return <>{children}</>;
 }
 
 export function Field({
