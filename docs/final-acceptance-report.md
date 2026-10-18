@@ -1,55 +1,110 @@
-# V1 acceptance status — work in progress
+# V1 completion acceptance
 
-This report tracks distinct gates. It is not a completion claim.
-Source baseline: `ed66912080c04a4c44747735c67445511091ea72`;
-completion work on `codex/v1-completion` is not yet sealed or published.
+Baseline ed66912080c04a4c44747735c67445511091ea72; completion branch
+codex/v1-completion. Historical evidence and the original dirty manifest are
+preserved. Final publication identity and hashes will be recorded separately
+under ignored artifacts/completion-publication.json to avoid a self-SHA loop.
 
-| Gate | Current state | Unmet requirements |
+| Gate | State | Remaining requirement |
 | --- | --- | --- |
-| IMPLEMENTATION COMPLETE | Incomplete | completion-plan queue, recovery/retention/processor audit, required real payment adapter |
-| LOCAL ACCEPTANCE PASSED | Not yet executed for completion inputs | integrated suites/runtime/browser, current restore/rollback/load and valid image scans |
-| HOSTED CI PASSED | BLOCKED historically; new candidate pending | exact completion SHA publication/checks; prior account billing restriction needs reinspection |
-| STAGING VALIDATED | BLOCKED | approved target/domain/region/budget, security gates and deploy authorization |
-| PRODUCTION VERIFIED | BLOCKED | staging acceptance and authorized real production deployment |
-| PAID COMMERCIAL READY | BLOCKED | merchant/provider/prices/currency/commercial policy, concrete sandbox-verified adapter and production gates |
+| IMPLEMENTATION COMPLETE | BLOCKED | Required concrete payment adapter; grounded merchant/provider/commercial decisions unavailable |
+| LOCAL ACCEPTANCE PASSED | BLOCKED | functional acceptance passed; image security gate open; Valid final image findings must satisfy unchanged High/Critical policy |
+| HOSTED CI PASSED | BLOCKED until an exact candidate pass is recorded | All nine jobs must pass; exact SHA/run inspection is recorded separately in completion-publication.json; prior billing restriction |
+| STAGING VALIDATED | BLOCKED | Passing security/CI, approved host/domain/region/budget and deploy authorization |
+| PRODUCTION VERIFIED | BLOCKED | Staging acceptance and authorized production deployment/verification |
+| PAID COMMERCIAL READY | BLOCKED | Grounded merchant/provider/currency/prices/tax/refund/renewal policy, concrete sandbox-verified adapter and production gates |
 
-The [traceability matrix](completion-plan.md) is the capability inventory. Earlier
-[Phase10 acceptance](phase10-completion-report.md) identifies prior executed
-287 backend, 59 frontend, 15 script, 18 mock evaluation and 11 browser checkpoints.
-Those counts describe historical input identities, not this candidate.
+The [requirement matrix](completion-plan.md) reconciles Phase1–10 against actual
+code and original scope. Conditional OCR and later physical testing are not
+silently represented as implemented promises. Deterministic rules remain the
+assessment authority; AI output is grounded review material, never a canonical
+write or safety certification. Live quality/connectivity was not authorized.
 
-New processor checks: first execution failed due test transaction lifecycle;
-corrected execution passed six PostgreSQL tests in 13.011 seconds, including
-two actual daemon start/stop cycles (`completion-processors-tests-r3.log`).
-Ruff, merged Compose validation and diff whitespace checks passed. No new image scan, hosted run, measured
-load, restore, rollback, remote deploy, live AI or real payment has been claimed.
-Final commands, receipts, vulnerabilities, publication identity, capacity results
-and consolidated external decisions will be recorded here as work proceeds.
+Completion changes include supervised webhook dispatch/stale extraction fencing,
+bounded billing reconciliation, private operator-assisted single-use account
+recovery, organization/membership/ownership/lifecycle customer flows, explicit
+owner-controlled unused original-file disposal with preservation defaults and
+legal hold, durable uncertainty/reconciliation, DB guards and retention-aware
+backup/restore. Billing remains disabled by default; simulator results never
+claim a real payment provider. See [retention](source-retention.md),
+[security review](completion-security-review.md) and
+[deployment handoff](completion-deployment.md).
 
-Identity increment: the complete PostgreSQL backend suite executed/passed
-302 tests with zero skips in 541.931s, including recovery single-use/concurrency,
-CSRF, session/credential revocation and real runtime-role guard tests
-(`artifacts/completion-identity-backend-full.log`). Schema validation and 18/18
-mock evaluation passed with zero provider calls. The subsequent drift command
-reported no model changes but warned that the intentionally nonexistent base
-test DB was absent; actual rehearsal migration consistency still needs checking.
-The earlier recovery-only frontend and the final membership/settings frontend
-both passed 59 tests, format/lint/types and production builds; the latter receipt
-is `completion-frontend-identity-build.log`. Sixteen script tests passed in
-0.413s outside the Windows sandbox after sandbox tempfile permission failures.
-These results do not yet establish integrated browser or final v1 acceptance.
+Executed evidence (ignored artifacts; identities recorded in receipts):
 
-Identity integrated acceptance subsequently **executed/passed**: the new local
-TLS/ClamAV/role-separated runtime includes a healthy supervised processor;
-phase2 repeated200-read and product/ingestion/compatibility/recorded-AI smokes
-passed. Actual migrations/drift/schema/dependency checks passed against its DB.
-The first browser run found an inaccessible role label; fixed HTML label
-associations, reran affected frontend checks/build, and repeated the whole
-journey. `artifacts/completion-identity-browser-r2` records14 passing checkpoints
-in1.6minutes, Chromium156, TLS validation and sandbox enabled. This includes
-recovery/password change/single-use denial, member add/role/remove, ownership
-transfer, suspend/reactivate, issuer/tenant/role boundaries and existing business
-flows. Screenshots were checked for layout and secret absence. Ten final recovery
-tests passed in4.219s after the lock refinement. Actual quiesced backup and
-rollout (including processor stop/resume) passed. This is slice acceptance;
-whole-product restore/rollback/load/scan/hosted/deployment gates remain open.
+| Verification | Result and evidence |
+| --- | --- |
+| Final full backend | 323 passed219.795s; completion-final323-backend.log |
+| Final delayed-removal fencing | 38 affected passed27.191s including11 retention cases; completion-cleanup-fence-tests.log |
+| Frontend source/build | 59 passed; formatting/lint/types/production build passed; completion-retention-frontend-build.log |
+| Mocked release tools/style | 29 passed0.515s; completion-script-checks-final-r3.log; Ruff211 files passed |
+| Patched supported bases | Node24/Postgres17 Trixie, nginx1.30.6, unused runtime npm removed; no dependency lock change |
+| Actual session/business smoke | Login/CSRF/cookies/logout/tenant/role; CSV/XLSX/text PDF/TXT, real ClamAV, reviewed imports, deterministic assessments and recorded AI passed |
+| Final browser | 15 checkpoints passed; completion-fenced-browser; confirmed removed-state PNG inspected |
+| Signed integration current R5 | Passed; completion-fenced-integration-demo/receipt.json; two signature-verified deliveries/one receiver effect, credential revocation401 |
+| Legacy recovery | 57 models/5 files restored into a NEW Trixie cluster; hashes/counts/forward migrations, narrow DB role, actual HTTPS login/private file/5 immutable assessments/tenant denials passed; legacy-restore.json and legacy-https.json |
+| Post-removal recovery | 59 models/5 retained files restored; confirmed removed sources not resurrected; completion-post-removal-restore.log |
+| Paired compatible rollback/forward | Passed; completion-paired-rollback-patched.log and rollback-controls.json; quotas/suspension/expiry/tenant/private/history/scoped keys/revoke/unconfigured outbound denial |
+| Dependency failures/restart | DB live200/ready503/recovery200/session/history passed; real EICAR rejected/scanner down fails closed; restart/private hash/snapshots passed |
+| Measured read workload | 240 reads,4 concurrent,0errors,3.508s,68.41rps,p50 54.28ms,p95 88.89ms,p99 127.38ms; completion-fenced-load.log |
+| Runtime consistency | Actual production-control rehearsal DB checks, drift/migrations/schema validation passed; completion-r5-production-consistency.log |
+| Mock AI evaluation | 18/18 matched,0provider calls; no live accuracy/precision/recall claim |
+| Vulnerability evidence | Official fresh DB transfer/attestation resolved; valid earlier scans FAILED High/Critical policy; available supported fixes applied, selected eight-image results in completion-release-image-scans-r3; final identity/result bindings in completion-publication.json |
+
+Receipts for current operational tests are under
+artifacts/completion-patched-rehearsal. Final functional driver is artifacts/completion-final-checks-driver.log.
+The remediated rollback retains2181 identical application files/symlinks; its
+paired rollback/forward passed. Final selected scan driver is
+artifacts/completion-release-image-scan-r3-driver.log. No failed receipt was overwritten.
+One earlier full-suite/browser attempt suffered measured host contention and
+strict startup/deadline failures; unchanged sequential repeats passed. Four
+historical same-workspace rehearsals were reversibly paused, preserving all
+containers/volumes/data; exact resume IDs are recorded in
+artifacts/completion-historical-rehearsal-pause.json. Prior b1 target was backed up
+and stopped. Development and unrelated services were not changed.
+
+Rollback helper failures were corrected without changing product contracts:
+production deliberately disables outbound transport; POST-only destinations
+correctly reject GET405. Final helper checks the management endpoint and correct
+configured denial, while signed deliveries are tested on guarded rehearsal.
+
+Local load thresholds remain <=30seconds, p95<=1500ms and zero errors on Docker
+8CPU/8178565120bytes. This bounded authenticated read workload does not establish
+write/extraction saturation or production capacity. Qualify the approved target.
+
+Representative executed commands (generated env files are protected, never
+printed; all fixture/cleanup targets are synthetic and isolated):
+
+```sh
+docker run --rm --network ppi-rehearsal-e908f9a5f5_default \
+  --env-file artifacts/completion-patched-rehearsal/migration.env \
+  -e POSTGRES_DB=ppi_completion_final323 \
+  -e DJANGO_SETTINGS_MODULE=config.settings.test \
+  -e INGESTION_SCANNER= -e TRUSTED_PROXY_CIDRS= \
+  -v ppi-rehearsal-e908f9a5f5_rehearsal_tls:/certs:ro \
+  --entrypoint python ppi-completion-retention-sdk manage.py test \
+  accounts organizations operations products ingestion compatibility commercial billing integrations --noinput
+python -m unittest discover -s scripts -p 'test_*.py'
+python -m ruff check backend scripts --config backend/pyproject.toml
+python -m ruff format --check backend scripts --config backend/pyproject.toml
+python scripts/integration_demo.py --directory artifacts/completion-patched-rehearsal --output artifacts/completion-fenced-integration-demo
+python scripts/browser_acceptance.py --directory artifacts/completion-patched-rehearsal --output artifacts/completion-fenced-browser --commercial-fixtures --billing-fixtures --integration-fixtures --recovery-fixtures --retention-fixtures
+python scripts/release_probes.py --directory artifacts/completion-patched-rehearsal --load --observe-seconds 30
+```
+
+Frontend verification ran `npm run format:check`, `npm run lint`,
+`npm run typecheck`, `npm test` and `npm run build` using the locked dependencies.
+Final runtime consistency used `config.settings.rehearsal` with its actual TLS
+database and `INGESTION_STORAGE_ROOT=/var/lib/ppi/private`: `manage.py check`,
+`makemigrations --check --dry-run`, `migrate --check`,
+`spectacular --validate --fail-on-warn`, `evaluate_extraction` and
+`check_ai_provider` without a live flag. `pip check` passed in the same SDK image.
+
+Remaining smallest external actions: obtain supported patched image packages or
+trusted vulnerability DB corrections, rerun affected scans/acceptance; resolve
+hosted billing execution restriction under existing owner settings if confirmed;
+provide grounded merchant/provider/commercial decisions and authorized sandbox;
+approve staging host/domain/region/budget/deployment boundary. Live AI validation
+needs separately bounded authorization and approved fixtures. No billing settings,
+secrets, DNS, infrastructure, live AI/payment, remote deployment or image
+publication were changed by this work.
